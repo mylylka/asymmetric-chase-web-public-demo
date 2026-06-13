@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Demo_06_RescueStruggle</title>
+    <link rel="stylesheet" href="../css/styles.css?v=mobile-controls-20260525b">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="game-frame" aria-label="Demo_06_RescueStruggle">
+        <canvas id="gameCanvas"></canvas>
+
+        <div class="role-overlay" id="roleOverlay">
+          <div class="role-dialog" aria-label="选择阵营">
+            <p class="eyebrow">Demo_06_RescueStruggle</p>
+            <h2>选择阵营</h2>
+            <div class="role-actions">
+              <button type="button" class="role-button survivor" data-role="survivor">
+                <span>逃生阵营</span>
+                <strong>Space 板窗 · E 救援/治疗/修理/开门</strong>
+              </button>
+              <button type="button" class="role-button hunter" data-role="hunter">
+                <span>追捕阵营</span>
+                <strong>J 攻击 · Space 牵起/挂椅/踩板窗</strong>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud hud-top">
+          <div>
+            <p class="eyebrow">Demo_06_RescueStruggle</p>
+            <h1>救援与挣扎原型</h1>
+          </div>
+          <div class="stat-grid" aria-label="角色状态">
+            <div class="stat">
+              <span>玩家</span>
+              <strong id="speedReadout">0.0</strong>
+            </div>
+            <div class="stat">
+              <span>修理</span>
+              <strong id="staminaReadout">100%</strong>
+            </div>
+            <div class="stat">
+              <span>追击</span>
+              <strong id="collisionReadout">正常</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud hud-bottom">
+          <div class="mini-map" aria-hidden="true">
+            <canvas id="miniMapCanvas"></canvas>
+          </div>
+          <div class="progress-panel" aria-label="地图验证">
+            <div>
+              <span>修理进度</span>
+              <strong id="repairsReadout">0/5</strong>
+            </div>
+            <div>
+              <span>出口</span>
+              <strong id="exitsReadout">未开启</strong>
+            </div>
+            <div>
+              <span>逃出/淘汰</span>
+              <strong id="escapeReadout">0/0</strong>
+            </div>
+            <div>
+              <span>操作</span>
+              <strong id="controlsReadout">E / Space</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="touch-stick" id="touchStick" aria-hidden="true">
+          <div class="touch-knob" id="touchKnob"></div>
+        </div>
+
+        <div class="touch-actions" id="touchActions" aria-label="触控操作">
+          <button type="button" class="touch-action use" id="touchUseButton">使用</button>
+          <button type="button" class="touch-action interact" id="touchInteractButton">交互</button>
+          <button type="button" class="touch-action attack" id="touchAttackButton">攻击</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="../js/demo-06-rescue-struggle.js?v=demo06-halfline-20260527"></script>
+  </body>
+</html>

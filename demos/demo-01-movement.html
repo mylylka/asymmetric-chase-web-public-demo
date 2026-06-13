@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Demo_01_Movement</title>
+    <link rel="stylesheet" href="../css/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="game-frame" aria-label="Demo_01_Movement">
+        <canvas id="gameCanvas"></canvas>
+
+        <div class="hud hud-top">
+          <div>
+            <p class="eyebrow">Demo_01_Movement</p>
+            <h1>小地图移动原型</h1>
+          </div>
+          <div class="stat-grid" aria-label="角色状态">
+            <div class="stat">
+              <span>速度</span>
+              <strong id="speedReadout">0.0</strong>
+            </div>
+            <div class="stat">
+              <span>体力</span>
+              <strong id="staminaReadout">100%</strong>
+            </div>
+            <div class="stat">
+              <span>碰撞</span>
+              <strong id="collisionReadout">正常</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud hud-bottom">
+          <div class="mini-map" aria-hidden="true">
+            <canvas id="miniMapCanvas"></canvas>
+          </div>
+          <div class="progress-panel" aria-label="地图验证">
+            <div>
+              <span>地图边界</span>
+              <strong>已开启</strong>
+            </div>
+            <div>
+              <span>墙体阻挡</span>
+              <strong>已开启</strong>
+            </div>
+            <div>
+              <span>摄像机跟随</span>
+              <strong>已开启</strong>
+            </div>
+            <div>
+              <span>板窗点位</span>
+              <strong>已规划</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="touch-stick" id="touchStick" aria-hidden="true">
+          <div class="touch-knob" id="touchKnob"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="../js/demo-01-movement.js"></script>
+  </body>
+</html>

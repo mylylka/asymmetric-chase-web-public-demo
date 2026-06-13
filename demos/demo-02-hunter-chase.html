@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Demo_02_HunterChase</title>
+    <link rel="stylesheet" href="../css/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="game-frame" aria-label="Demo_02_HunterChase">
+        <canvas id="gameCanvas"></canvas>
+
+        <div class="hud hud-top">
+          <div>
+            <p class="eyebrow">Demo_02_HunterChase</p>
+            <h1>追捕者追击原型</h1>
+          </div>
+          <div class="stat-grid" aria-label="角色状态">
+            <div class="stat">
+              <span>逃生者</span>
+              <strong id="speedReadout">0.0</strong>
+            </div>
+            <div class="stat">
+              <span>体力</span>
+              <strong id="staminaReadout">100%</strong>
+            </div>
+            <div class="stat">
+              <span>追击</span>
+              <strong id="collisionReadout">正常</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud hud-bottom">
+          <div class="mini-map" aria-hidden="true">
+            <canvas id="miniMapCanvas"></canvas>
+          </div>
+          <div class="progress-panel" aria-label="地图验证">
+            <div>
+              <span>追捕者 AI</span>
+              <strong>更快追击</strong>
+            </div>
+            <div>
+              <span>命中擦刀</span>
+              <strong>3 秒</strong>
+            </div>
+            <div>
+              <span>交互</span>
+              <strong>Space</strong>
+            </div>
+            <div>
+              <span>重开</span>
+              <strong>R 键</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="touch-stick" id="touchStick" aria-hidden="true">
+          <div class="touch-knob" id="touchKnob"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="../js/demo-02-hunter-chase.js"></script>
+  </body>
+</html>

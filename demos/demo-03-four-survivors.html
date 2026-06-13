@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Demo_03_FourSurvivors</title>
+    <link rel="stylesheet" href="../css/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="game-frame" aria-label="Demo_03_FourSurvivors">
+        <canvas id="gameCanvas"></canvas>
+
+        <div class="role-overlay" id="roleOverlay">
+          <div class="role-dialog" aria-label="选择阵营">
+            <p class="eyebrow">Demo_03_FourSurvivors</p>
+            <h2>选择阵营</h2>
+            <div class="role-actions">
+              <button type="button" class="role-button survivor" data-role="survivor">
+                <span>逃生阵营</span>
+                <strong>Space 板窗 · E 治疗</strong>
+              </button>
+              <button type="button" class="role-button hunter" data-role="hunter">
+                <span>追捕阵营</span>
+                <strong>J 键出刀攻击</strong>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud hud-top">
+          <div>
+            <p class="eyebrow">Demo_03_FourSurvivors</p>
+            <h1>四名逃生者追击原型</h1>
+          </div>
+          <div class="stat-grid" aria-label="角色状态">
+            <div class="stat">
+              <span>玩家</span>
+              <strong id="speedReadout">0.0</strong>
+            </div>
+            <div class="stat">
+              <span>体力</span>
+              <strong id="staminaReadout">100%</strong>
+            </div>
+            <div class="stat">
+              <span>追击</span>
+              <strong id="collisionReadout">正常</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud hud-bottom">
+          <div class="mini-map" aria-hidden="true">
+            <canvas id="miniMapCanvas"></canvas>
+          </div>
+          <div class="progress-panel" aria-label="地图验证">
+            <div>
+              <span>队友 AI</span>
+              <strong>3 名</strong>
+            </div>
+            <div>
+              <span>追捕目标</span>
+              <strong>动态切换</strong>
+            </div>
+            <div>
+              <span>队友牵制</span>
+              <strong>板窗</strong>
+            </div>
+            <div>
+              <span>操作</span>
+              <strong>J / E / Space</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="touch-stick" id="touchStick" aria-hidden="true">
+          <div class="touch-knob" id="touchKnob"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="../js/demo-03-four-survivors.js?v=demo03-hunter-interactions-20260524"></script>
+  </body>
+</html>

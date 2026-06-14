@@ -54,7 +54,8 @@
       cipher: { name: "齿轮", rarity: "blue", repairDuration: 0.94 },
       kite: { name: "羽步", rarity: "blue", vaultDuration: 0.93, hitBoostDuration: 1.12 },
       aid: { name: "援护", rarity: "blue", rescueDuration: 0.9, healPower: 1.12 },
-      ember: { name: "余火", rarity: "blue", crawlSpeed: 1.22, hitBoostDuration: 1.08 }
+      ember: { name: "余火", rarity: "blue", crawlSpeed: 1.22, hitBoostDuration: 1.08 },
+      adrenaline: { name: "回光返照", rarity: "purple", endgameBoost: 1.5 }
     },
     hunter: {
       detention: { name: "挽留", rarity: "purple", detention: 1 },
@@ -334,6 +335,7 @@
   const ASSIST_PATROLLER_SLOW = 0.65;
   const ASSIST_BLINK_DISTANCE = 260;
   const ASSIST_BLINK_ATTACK_BUFFER = 520;
+  const ADRENALINE_BOOST_DURATION = 5000;
 
   const world = {
     width: 2400,
@@ -373,6 +375,8 @@
     carryProgress: 0,
     chair: null,
     boostUntil: 0,
+    endgameBoostUntil: 0,
+    adrenalineTriggered: false,
     stitchPack: null,
     timeDevice: null,
     invisibleUntil: 0,
@@ -696,6 +700,8 @@
       carryProgress: 0,
       chair: null,
       boostUntil: 0,
+      endgameBoostUntil: 0,
+      adrenalineTriggered: false,
       stitchPack: null,
       timeDevice: null,
       invisibleUntil: 0,
@@ -794,6 +800,10 @@
 
   function hasHunterBadge(id) {
     return Array.isArray(hunter.badges) && hunter.badges.includes(id);
+  }
+
+  function hasSurvivorBadge(survivor, id) {
+    return Boolean(survivor && Array.isArray(survivor.badges) && survivor.badges.includes(id));
   }
 
   function getHunterAssistConfig(id = hunter.assistSkill || selectedHunterAssist) {
@@ -924,7 +934,7 @@
   }
 
   function getHunterBasicAttackDamage() {
-    return 1 + (isDetentionActive() ? 1 : 0);
+    return 1;
   }
 
   function isInSoulLampRange(actor) {
@@ -947,7 +957,8 @@
     const shackled = now < (actor.shackledUntil || 0) ? 0 : 1;
     const patrollerHold = now < (actor.patrollerHoldUntil || 0) ? 0 : 1;
     const patrollerSlow = now < (actor.patrollerSlowUntil || 0) ? ASSIST_PATROLLER_SLOW : 1;
-    return getBoneBleedSpeedMultiplier(actor, now) * actorBoost * twinSlow * shackled * patrollerHold * patrollerSlow;
+    const endgameBoost = now < (actor.endgameBoostUntil || 0) ? getSurvivorBadgeMultiplier(actor, "endgameBoost") : 1;
+    return getBoneBleedSpeedMultiplier(actor, now) * actorBoost * twinSlow * shackled * patrollerHold * patrollerSlow * endgameBoost;
   }
 
   function getBoneBleedStacks(actor, now = performance.now()) {
@@ -2607,10 +2618,15 @@
   }
 
   function useAssistBlink(now) {
+    const destination = getBlinkDestination();
+    const dx = destination.x - hunter.x;
+    const dy = destination.y - hunter.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance > 8) hunter.angle = Math.atan2(dy, dx);
     const blinked = moveActorSmart(
       hunter,
-      Math.cos(hunter.angle) * ASSIST_BLINK_DISTANCE,
-      Math.sin(hunter.angle) * ASSIST_BLINK_DISTANCE
+      dx,
+      dy
     );
     hunter.vx = 0;
     hunter.vy = 0;
@@ -2705,6 +2721,7 @@
       addHunterPresenceHit(now);
       applyHunterHit(target, now, {
         applyBoneBleed: isSawbone(),
+        detentionDown: isDetentionActive(),
         damage: getHunterBasicAttackDamage()
       });
       hunter.wipeUntil = isBalloonAttack ? now : now + getHunterHitRecoveryDuration();
@@ -3133,7 +3150,7 @@
       survivor.action = null;
     }
 
-    if (terrorShock && options.allowTerrorShock !== false) {
+    if (options.detentionDown || terrorShock && options.allowTerrorShock !== false) {
       downSurvivor(survivor);
       survivor.boostUntil = 0;
       chasePulseUntil = now + 420;
@@ -3594,6 +3611,8 @@
     survivor.chair = null;
     survivor.escaped = false;
     survivor.boostUntil = 0;
+    survivor.endgameBoostUntil = 0;
+    survivor.adrenalineTriggered = false;
     survivor.stitchPack = null;
     survivor.timeDevice = null;
     survivor.invisibleUntil = 0;
@@ -4012,6 +4031,22 @@
     }
     if (useLastPointer && lastAimPointer) return screenToWorld(lastAimPointer.clientX, lastAimPointer.clientY);
     return null;
+  }
+
+  function getBlinkDestination() {
+    const target = getAimTargetFromPointer(null, null, true) || {
+      x: hunter.x + Math.cos(hunter.angle) * ASSIST_BLINK_DISTANCE,
+      y: hunter.y + Math.sin(hunter.angle) * ASSIST_BLINK_DISTANCE
+    };
+    const dx = target.x - hunter.x;
+    const dy = target.y - hunter.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance < 1) return { x: hunter.x, y: hunter.y };
+    const scale = Math.min(ASSIST_BLINK_DISTANCE, distance) / distance;
+    return {
+      x: hunter.x + dx * scale,
+      y: hunter.y + dy * scale
+    };
   }
 
   function getDefaultPackageTarget(actor) {
@@ -4791,6 +4826,36 @@
         survivor.objectiveDecision = null;
       }
     });
+    if (getCompletedRepairCount() === REPAIR_REQUIRED) triggerAdrenalineBadges(performance.now());
+  }
+
+  function triggerAdrenalineBadges(now) {
+    let activated = 0;
+    getSurvivors().forEach((survivor) => {
+      if (!hasSurvivorBadge(survivor, "adrenaline") || survivor.adrenalineTriggered) return;
+      if (survivor.escaped || survivor.state === "eliminated" || survivor.state === "seated" || survivor.state === "carried") return;
+      survivor.adrenalineTriggered = true;
+      activated += 1;
+      restoreOneHealthState(survivor, now);
+      survivor.endgameBoostUntil = Math.max(survivor.endgameBoostUntil || 0, now + ADRENALINE_BOOST_DURATION);
+    });
+    if (activated > 0) showAssistAlert("回光返照", now, 1400);
+  }
+
+  function restoreOneHealthState(survivor, now) {
+    survivor.damageProgress = 0;
+    survivor.healProgress = 0;
+    if (survivor.state === "downed") {
+      survivor.state = "injured";
+      survivor.injuredAt = now;
+      survivor.downedAt = null;
+      survivor.action = null;
+      return;
+    }
+    if (survivor.state === "injured") {
+      survivor.state = "healthy";
+      survivor.injuredAt = null;
+    }
   }
 
   function cancelRepair(action) {
@@ -5715,6 +5780,7 @@
   }
 
   function getCameraTarget() {
+    if (selectedRole === PLAYER_ROLE.hunter && activePatroller) return activePatroller;
     if (selectedRole === PLAYER_ROLE.hunter) return hunter;
     if (player.escaped) {
       return teammates.find((survivor) => !survivor.escaped && survivor.state !== "downed") ||
@@ -5743,6 +5809,7 @@
     drawPallets();
     drawPackageAim();
     drawTwinAim();
+    drawBlinkAim();
     drawTwinSwordProjectiles();
     drawPackageProjectiles();
     drawHunter();
@@ -6077,6 +6144,26 @@
     ctx.lineTo(-8, 0);
     ctx.lineTo(-14, 13);
     ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBlinkAim() {
+    if (selectedRole !== PLAYER_ROLE.hunter || hunter.assistSkill !== "blink" || activePatroller || !canUseHunterAssist(performance.now())) return;
+    const destination = getBlinkDestination();
+    ctx.save();
+    ctx.strokeStyle = "rgba(217, 183, 106, 0.72)";
+    ctx.fillStyle = "rgba(217, 183, 106, 0.12)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 8]);
+    ctx.beginPath();
+    ctx.moveTo(hunter.x, hunter.y);
+    ctx.lineTo(destination.x, destination.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(destination.x, destination.y, hunter.radius + 5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.restore();
@@ -7627,7 +7714,7 @@
     });
     if (!target) return;
     target.patrollerHoldUntil = now + ASSIST_PATROLLER_HOLD_DURATION;
-    target.patrollerSlowUntil = now + ASSIST_PATROLLER_SLOW_DURATION;
+    target.patrollerSlowUntil = target.patrollerHoldUntil + ASSIST_PATROLLER_SLOW_DURATION;
     revealSurvivorByAssist(target, now, ASSIST_PATROLLER_SLOW_DURATION);
     activePatroller = null;
     showAssistAlert(`巡视者咬中 ${target.name}`, now, 1400);
@@ -8068,6 +8155,7 @@
   });
   window.addEventListener("keyup", (event) => keyToInput(event.key, false));
   window.addEventListener("pointermove", (event) => {
+    rememberAimPointer(event.clientX, event.clientY);
     updatePackageAim(event.clientX, event.clientY, event.pointerId);
     updateTwinAim(event.clientX, event.clientY, event.pointerId);
   });

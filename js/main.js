@@ -4,10 +4,10 @@
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
   const miniMap = document.getElementById("miniMapCanvas");
-  const miniCtx = miniMap.getContext("2d");
-  const speedReadout = document.getElementById("speedReadout");
-  const staminaReadout = document.getElementById("staminaReadout");
-  const collisionReadout = document.getElementById("collisionReadout");
+  const miniCtx = miniMap ? miniMap.getContext("2d") : null;
+  const cipherStatusReadout = document.getElementById("cipherStatusReadout");
+  const survivorStatusGrid = document.getElementById("survivorStatusGrid");
+  const cooldownPanel = document.getElementById("cooldownPanel");
   const touchStick = document.getElementById("touchStick");
   const touchKnob = document.getElementById("touchKnob");
   const touchUseButton = document.getElementById("touchUseButton");
@@ -32,6 +32,7 @@
   const characterButtons = document.querySelectorAll("[data-character]");
   const badgeButtons = document.querySelectorAll("[data-badge]");
   const assistButtons = document.querySelectorAll("[data-assist]");
+  let survivorStatusHtml = "";
   const HIDDEN_HUNTER_UNLOCK_KEY = "asymmetricChase.hiddenHunterUnlocked";
   const HIDDEN_HUNTER_UNLOCK_CODE = "jianxian";
 
@@ -69,7 +70,8 @@
     listen: { name: "聆听", cooldown: 42000 },
     peeper: { name: "插眼", cooldown: 50000 },
     patroller: { name: "巡视者", cooldown: 62000 },
-    blink: { name: "闪现", cooldown: 55000 }
+    blink: { name: "闪现", cooldown: 55000 },
+    shift: { name: "移形", cooldown: 68000 }
   };
 
   const SURVIVOR_CHARACTERS = {
@@ -128,6 +130,20 @@
       hitBoostDuration: 1,
       fill: "#b7d6c1",
       core: "#5aa475"
+    },
+    perfumer: {
+      name: "调香师",
+      roleTag: "牵制位",
+      rescuePriority: 2,
+      chaseDifficulty: 1.24,
+      repairDuration: 1,
+      vaultDuration: 0.96,
+      rescueDuration: 1,
+      healPower: 1,
+      crawlSpeed: 1,
+      hitBoostDuration: 1,
+      fill: "#cfefff",
+      core: "#4f9bd8"
     }
   };
 
@@ -168,6 +184,16 @@
       fill: "#d8d0bd",
       core: "#8f4f45"
     },
+    soulBinder: {
+      name: "引魂师",
+      speed: 302,
+      attackRange: 94,
+      hitRecovery: 1,
+      missRecovery: 1,
+      vaultDuration: 1,
+      fill: "#d8d0bd",
+      core: "#7453a8"
+    },
     twinSword: {
       name: "双生剑仙",
       speed: 316,
@@ -180,8 +206,8 @@
     }
   };
 
-  const AI_SURVIVOR_CHARACTER_ORDER = ["clockmaker", "actor", "messenger", "apprentice"];
-  const AI_HUNTER_CHARACTER_ORDER = ["standard", "brute", "lanternKeeper", "sawbone"];
+  const AI_SURVIVOR_CHARACTER_ORDER = ["clockmaker", "actor", "messenger", "apprentice", "perfumer"];
+  const AI_HUNTER_CHARACTER_ORDER = ["standard", "brute", "lanternKeeper", "sawbone", "soulBinder"];
 
   const ATTACK_KEY = "j";
   const SKILL_KEY = "q";
@@ -199,7 +225,7 @@
   const HUNTER_WINDOW_PROMPT_RANGE = 142;
   const HUNTER_WINDOW_VAULT_DURATION = 640;
   const REPAIR_REQUIRED = 5;
-  const HATCH_REPAIR_REQUIRED = 3;
+  const HATCH_REPAIR_REQUIRED = 2;
   const PLAYER_REPAIR_DURATION = 60000;
   const AI_REPAIR_DURATION = 60000;
   const GATE_OPEN_DURATION = 25000;
@@ -232,6 +258,19 @@
   const PACKAGE_RADIUS = 13;
   const PACKAGE_HIT_RADIUS = 34;
   const APPRENTICE_ID = "apprentice";
+  const PERFUMER_ID = "perfumer";
+  const PERFUMER_SENSE_FAR_RANGE = 300;
+  const PERFUMER_SENSE_NEAR_RANGE = 150;
+  const PERFUME_MIST_RADIUS = 100;
+  const PERFUME_MIST_DURATION = 10000;
+  const PERFUME_MIST_COOLDOWN = 20000;
+  const PERFUME_HUNTER_SPEED_MULTIPLIER = 0.9;
+  const PERFUME_SELF_SPEED_BOOST = 1.15;
+  const PERFUME_ULTIMATE_CHARGES = 4;
+  const PERFUME_ULTIMATE_RADIUS = 150;
+  const PERFUME_ULTIMATE_DURATION = 20000;
+  const PERFUME_ULTIMATE_SURVIVOR_SPEED_BOOST = 1.2;
+  const PERFUME_ULTIMATE_ILLUSIONS = 3;
   const STITCH_PACK_PICKUP_RADIUS = 34;
   const STITCH_HEAL_DELAY = 15000;
   const LANTERN_KEEPER_ID = "lanternKeeper";
@@ -271,6 +310,24 @@
   const ACTOR_DECOY_DURATION = 7600;
   const ACTOR_DECOY_SPEED = 210;
   const SAWBONE_ID = "sawbone";
+  const SOUL_BINDER_ID = "soulBinder";
+  const SOUL_MARK_MAX = 3;
+  const SOUL_MARK_REPAIR_SLOWDOWN = 1.1;
+  const SOUL_MARK_HEAL_POWER_MULTIPLIER = 0.8;
+  const SOUL_MARK_VAULT_SLOWDOWN = 1.1;
+  const SOUL_MARK_MOVE_SLOW = 0.85;
+  const SOUL_SIPHON_DURATION = 10000;
+  const SOUL_SIPHON_SPEED_BOOST = 1.2;
+  const SOUL_SIPHON_FAIL_SLOW = 0.9;
+  const SOUL_SIPHON_FAIL_DURATION = 3000;
+  const SOUL_SIPHON_COOLDOWN = 25000;
+  const BORROW_SOUL_DURATION = 15000;
+  const BORROW_SOUL_COOLDOWN = 50000;
+  const BORROW_SOUL_SPEED_PER_MARK = 0.03;
+  const BORROW_SOUL_RECOVERY_PER_MARK = 0.05;
+  const SOUL_RETURN_DURATION = 20000;
+  const SOUL_RETURN_COOLDOWN = 50000;
+  const SOUL_RETURN_CHAIR_SPEED = 1.3;
   const BONE_BLEED_DURATION = 10000;
   const BONE_BLEED_MAX_STACKS = 3;
   const BONE_BLEED_SLOW = 0.05;
@@ -335,7 +392,14 @@
   const ASSIST_PATROLLER_SLOW = 0.65;
   const ASSIST_BLINK_DISTANCE = 260;
   const ASSIST_BLINK_ATTACK_BUFFER = 520;
+  const ASSIST_SHIFT_RANGE = 780;
+  const ASSIST_SHIFT_DURATION = 20000;
+  const ASSIST_SHIFT_RADIUS = 36;
+  const ASSIST_SHIFT_TRIGGER_RANGE = 42;
+  const ASSIST_SHIFT_USES = 2;
+  const ASSIST_SHIFT_LOCKOUT = 620;
   const ADRENALINE_BOOST_DURATION = 5000;
+  const HEARTBEAT_RANGE = 520;
 
   const world = {
     width: 2400,
@@ -368,6 +432,8 @@
     healProgress: 0,
     damageProgress: 0,
     bleedStacks: [],
+    soulMarks: 0,
+    soulReturnUntil: 0,
     chairProgress: 0,
     injuredAt: null,
     downedAt: null,
@@ -387,6 +453,9 @@
     nextPackageAt: 0,
     nextTimeRewindAt: 0,
     nextMagicShowAt: 0,
+    nextPerfumeMistAt: 0,
+    perfumeBoostUntil: 0,
+    perfumeUltimateCharges: 0,
     magicShowMode: "rescue",
     wanderTarget: null,
     kiteDecision: null,
@@ -425,6 +494,19 @@
     presenceTier: 0,
     nextShadowTeleportAt: 0,
     nextSawDashAt: 0,
+    nextSoulSiphonAt: 0,
+    soulSiphonTarget: null,
+    soulSiphonUntil: 0,
+    soulSiphonPenaltyUntil: 0,
+    nextBorrowSoulAt: 0,
+    borrowSoulUntil: 0,
+    borrowSoulSpeedBonus: 0,
+    borrowSoulRecoveryBonus: 0,
+    nextSoulReturnAt: 0,
+    soulSelectionMode: null,
+    soulSelectionCandidate: null,
+    soulSelectionCount: 0,
+    soulSelectionAt: 0,
     sawAttackLockedUntil: 0,
     shortSawAvailableUntil: 0,
     pendingSawWipe: false,
@@ -571,16 +653,19 @@
   let soulLampId = 0;
   let assistPeeperId = 0;
   let activePatroller = null;
+  let activeShiftPortals = null;
   let packageProjectileId = 0;
   let packageAim = null;
   let lastAimPointer = null;
   let stitchPackDropId = 0;
   let actorDecoyId = 0;
+  let perfumeMistId = 0;
   const soulLamps = [];
   const assistPeeperWards = [];
   const packageProjectiles = [];
   const stitchPackDrops = [];
   const actorDecoys = [];
+  const perfumeMists = [];
   const twinShadowZones = [];
   const twinSwordProjectiles = [];
   const DEVICE_ASSET_ROOT = `${window.location.pathname.includes("/demos/") ? "../" : "./"}assets/devices/`;
@@ -693,6 +778,8 @@
       healProgress: 0,
       damageProgress: 0,
       bleedStacks: [],
+      soulMarks: 0,
+      soulReturnUntil: 0,
       chairProgress: 0,
       injuredAt: null,
       downedAt: null,
@@ -712,6 +799,9 @@
       nextPackageAt: 0,
       nextTimeRewindAt: 0,
       nextMagicShowAt: 0,
+      nextPerfumeMistAt: 0,
+      perfumeBoostUntil: 0,
+      perfumeUltimateCharges: 0,
       magicShowMode: "rescue",
       wanderTarget: null,
       kiteDecision: null,
@@ -729,7 +819,12 @@
   }
 
   function getSurvivorCharacter(actor) {
-    return SURVIVOR_CHARACTERS[actor.characterId] || SURVIVOR_CHARACTERS.clockmaker;
+    const characterId = actor && (actor.characterId || actor.owner && actor.owner.characterId);
+    return SURVIVOR_CHARACTERS[characterId] || SURVIVOR_CHARACTERS.clockmaker;
+  }
+
+  function getSurvivorDisplayName(survivor) {
+    return getSurvivorCharacter(survivor).name || survivor.name;
   }
 
   function isClockmaker(actor) {
@@ -748,8 +843,12 @@
     return actor && actor.characterId === APPRENTICE_ID;
   }
 
+  function isPerfumer(actor) {
+    return actor && actor.characterId === PERFUMER_ID;
+  }
+
   function hasSurvivorSkill(actor) {
-    return isMessenger(actor) || isApprentice(actor) || isClockmaker(actor) || isActor(actor);
+    return isMessenger(actor) || isApprentice(actor) || isClockmaker(actor) || isActor(actor) || isPerfumer(actor);
   }
 
   function getSurvivorMultiplier(actor, key, fallback = 1) {
@@ -847,6 +946,10 @@
     return hunter.characterId === SAWBONE_ID;
   }
 
+  function isSoulBinder() {
+    return hunter.characterId === SOUL_BINDER_ID;
+  }
+
   function isTwinSword() {
     return hunter.characterId === TWIN_SWORD_ID;
   }
@@ -860,7 +963,7 @@
   }
 
   function hunterHasSkill() {
-    return isLanternKeeper() || isSawbone() || isTwinSword();
+    return isLanternKeeper() || isSawbone() || isTwinSword() || isSoulBinder();
   }
 
   function getSoulLampLimit() {
@@ -914,7 +1017,7 @@
   }
 
   function getSurvivorVaultDuration(actor, baseDuration) {
-    return Math.round(baseDuration * getSurvivorMultiplier(actor, "vaultDuration") * getSoulLampVaultSlowdown(actor) / getSurvivorInteractionSpeedMultiplier(actor));
+    return Math.round(baseDuration * getSurvivorMultiplier(actor, "vaultDuration") * getSoulLampVaultSlowdown(actor) * getSoulMarkVaultSlowdown(actor) / getSurvivorInteractionSpeedMultiplier(actor));
   }
 
   function getHunterVaultDuration(baseDuration) {
@@ -922,11 +1025,11 @@
   }
 
   function getHunterHitRecoveryDuration() {
-    return HUNTER_HIT_RECOVERY * getHunterCharacter().hitRecovery * getHunterBadgeMultiplier("hitRecovery");
+    return HUNTER_HIT_RECOVERY * getHunterCharacter().hitRecovery * getHunterBadgeMultiplier("hitRecovery") * getBorrowSoulRecoveryMultiplier();
   }
 
   function getHunterMissRecoveryDuration() {
-    return HUNTER_MISS_RECOVERY * getHunterCharacter().missRecovery * getHunterBadgeMultiplier("missRecovery");
+    return HUNTER_MISS_RECOVERY * getHunterCharacter().missRecovery * getHunterBadgeMultiplier("missRecovery") * getBorrowSoulRecoveryMultiplier();
   }
 
   function isDetentionActive() {
@@ -946,7 +1049,7 @@
     const twinTimeBoost = isTwinSword() && hunter.twinTimePower && hunter.twinTimePower.kind === "self" && performance.now() < hunter.twinTimePower.until
       ? hunter.twinTimePower.factor
       : 1;
-    return hunter.speed * (isInSoulLampRange(hunter) ? SOUL_LAMP_HUNTER_SPEED_BOOST : 1) * twinFormBoost * twinTimeBoost;
+    return hunter.speed * (isInSoulLampRange(hunter) ? SOUL_LAMP_HUNTER_SPEED_BOOST : 1) * twinFormBoost * twinTimeBoost * getSoulSiphonMoveMultiplier() * getBorrowSoulMoveMultiplier() * getPerfumeHunterSpeedMultiplier();
   }
 
   function getSurvivorMoveSpeedMultiplier(actor, now = performance.now()) {
@@ -958,7 +1061,13 @@
     const patrollerHold = now < (actor.patrollerHoldUntil || 0) ? 0 : 1;
     const patrollerSlow = now < (actor.patrollerSlowUntil || 0) ? ASSIST_PATROLLER_SLOW : 1;
     const endgameBoost = now < (actor.endgameBoostUntil || 0) ? getSurvivorBadgeMultiplier(actor, "endgameBoost") : 1;
-    return getBoneBleedSpeedMultiplier(actor, now) * actorBoost * twinSlow * shackled * patrollerHold * patrollerSlow * endgameBoost;
+    const perfumeSelfBoost = now < (actor.perfumeBoostUntil || 0) ? PERFUME_SELF_SPEED_BOOST : 1;
+    const perfumeUltimateBoost = isInPerfumeUltimateMist(actor, now) ? PERFUME_ULTIMATE_SURVIVOR_SPEED_BOOST : 1;
+    return getBoneBleedSpeedMultiplier(actor, now) * getSoulMarkMoveMultiplier(actor) * actorBoost * twinSlow * shackled * patrollerHold * patrollerSlow * endgameBoost * perfumeSelfBoost * perfumeUltimateBoost;
+  }
+
+  function getPerfumeHunterSpeedMultiplier(now = performance.now()) {
+    return isHunterInPerfumeMist(now) ? PERFUME_HUNTER_SPEED_MULTIPLIER : 1;
   }
 
   function getBoneBleedStacks(actor, now = performance.now()) {
@@ -988,17 +1097,62 @@
     }
   }
 
+  function getSoulMarks(survivor) {
+    return actorClamp(survivor && survivor.soulMarks || 0, 0, SOUL_MARK_MAX);
+  }
+
+  function addSoulMark(survivor, amount = 1) {
+    if (!survivor || survivor.escaped || survivor.state === "eliminated") return 0;
+    const before = getSoulMarks(survivor);
+    survivor.soulMarks = Math.min(SOUL_MARK_MAX, before + amount);
+    return survivor.soulMarks - before;
+  }
+
+  function clearOneSoulMark(survivor) {
+    if (!survivor || getSoulMarks(survivor) <= 0) return false;
+    survivor.soulMarks = Math.max(0, getSoulMarks(survivor) - 1);
+    return true;
+  }
+
+  function getSoulMarkMoveMultiplier(survivor) {
+    return getSoulMarks(survivor) >= 3 ? SOUL_MARK_MOVE_SLOW : 1;
+  }
+
+  function getSoulSiphonMoveMultiplier(now = performance.now()) {
+    if (!isSoulBinder()) return 1;
+    if (now < (hunter.soulSiphonPenaltyUntil || 0)) return SOUL_SIPHON_FAIL_SLOW;
+    if (!hunter.soulSiphonTarget || now >= (hunter.soulSiphonUntil || 0)) return 1;
+    const move = getMoveVector();
+    if (move.length <= 0.1) return 1;
+    const toTarget = normalizeVector(hunter.soulSiphonTarget.x - hunter.x, hunter.soulSiphonTarget.y - hunter.y);
+    const alignment = move.x * toTarget.x + move.y * toTarget.y;
+    return alignment > 0.35 ? SOUL_SIPHON_SPEED_BOOST : 1;
+  }
+
+  function getBorrowSoulMoveMultiplier(now = performance.now()) {
+    return isSoulBinder() && now < (hunter.borrowSoulUntil || 0) ? 1 + (hunter.borrowSoulSpeedBonus || 0) : 1;
+  }
+
+  function getBorrowSoulRecoveryMultiplier(now = performance.now()) {
+    return isSoulBinder() && now < (hunter.borrowSoulUntil || 0) ? Math.max(0.45, 1 - (hunter.borrowSoulRecoveryBonus || 0)) : 1;
+  }
+
   function isSurvivorInvisible(survivor, now = performance.now()) {
     return Boolean(survivor && now < (survivor.invisibleUntil || 0));
   }
 
   function shouldHideSurvivorFromHunterView(survivor, now = performance.now()) {
     if (isAssistRevealed(survivor, now)) return false;
-    return selectedRole === PLAYER_ROLE.hunter && isActor(survivor) && isSurvivorInvisible(survivor, now);
+    if (isSoulBinder() && getSoulMarks(survivor) >= 3) return false;
+    return selectedRole === PLAYER_ROLE.hunter && isSurvivorInvisible(survivor, now);
   }
 
   function getSoulLampVaultSlowdown(actor) {
     return isInSoulLampRange(actor) ? SOUL_LAMP_SURVIVOR_VAULT_SLOWDOWN : 1;
+  }
+
+  function getSoulMarkVaultSlowdown(actor) {
+    return getSoulMarks(actor) >= 2 ? SOUL_MARK_VAULT_SLOWDOWN : 1;
   }
 
   function getSurvivorRepairDuration(actor, baseDuration) {
@@ -1014,11 +1168,16 @@
   }
 
   function getSurvivorHealPower(actor) {
-    return getSurvivorMultiplier(actor, "healPower") * getSurvivorInteractionSpeedMultiplier(actor);
+    return getSurvivorMultiplier(actor, "healPower") * getSurvivorInteractionSpeedMultiplier(actor) * getSoulMarkHealPowerMultiplier(actor);
+  }
+
+  function getSoulMarkHealPowerMultiplier(actor) {
+    return getSoulMarks(actor) >= 2 ? SOUL_MARK_HEAL_POWER_MULTIPLIER : 1;
   }
 
   function getRepairSpeedMultiplier(actor) {
-    const actionSpeed = getSurvivorInteractionSpeedMultiplier(actor);
+    const soulSpeed = getSoulMarks(actor) >= 1 ? 1 / SOUL_MARK_REPAIR_SLOWDOWN : 1;
+    const actionSpeed = getSurvivorInteractionSpeedMultiplier(actor) * soulSpeed;
     if (isLanternKeeper() && distanceBetween(actor, hunter) <= LANTERN_AURA_RANGE) {
       return LANTERN_REPAIR_SLOWDOWN * actionSpeed;
     }
@@ -1072,6 +1231,24 @@
 
   function getMagicShowCooldownLeft(actor, now) {
     return Math.max(0, (actor.nextMagicShowAt || 0) - now);
+  }
+
+  function getPerfumeCooldownLeft(actor, now) {
+    return Math.max(0, (actor.nextPerfumeMistAt || 0) - now);
+  }
+
+  function canUsePerfumeMist(actor, now) {
+    return Boolean(
+      isPerfumer(actor) &&
+      (actor.state === "healthy" || actor.state === "injured") &&
+      !actor.action &&
+      !actor.escaped &&
+      now >= (actor.nextPerfumeMistAt || 0)
+    );
+  }
+
+  function hasPerfumeUltimate(actor) {
+    return (actor.perfumeUltimateCharges || 0) >= PERFUME_ULTIMATE_CHARGES;
   }
 
   function canThrowPackage(actor, now) {
@@ -1149,6 +1326,7 @@
       !hunter.carrying &&
       now >= hunter.stunnedUntil &&
       now >= hunter.wipeUntil &&
+      !isHunterDisplacementBlocked(now) &&
       now >= (hunter.nextShadowTeleportAt || 0);
   }
 
@@ -1165,6 +1343,7 @@
       !hunter.carrying &&
       now >= hunter.stunnedUntil &&
       now >= hunter.wipeUntil &&
+      !isHunterDisplacementBlocked(now) &&
       (isInfiniteSawboneMode() || canUseShortSaw(now) || now >= (hunter.nextSawDashAt || 0));
   }
 
@@ -1178,10 +1357,12 @@
     canvas.style.height = `${height}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const miniBox = miniMap.getBoundingClientRect();
-    miniMap.width = Math.floor(miniBox.width * dpr);
-    miniMap.height = Math.floor(miniBox.height * dpr);
-    miniCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (miniMap && miniCtx) {
+      const miniBox = miniMap.getBoundingClientRect();
+      miniMap.width = Math.floor(miniBox.width * dpr);
+      miniMap.height = Math.floor(miniBox.height * dpr);
+      miniCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
   }
 
   function keyToInput(key, value) {
@@ -1427,12 +1608,14 @@
         survivor.vy = 0;
         return;
       }
+      if (maybeUseAIClockmakerSkill(survivor, hunterDistance, now)) return;
       if (updateAIDownedHatchCrawl(survivor, dt, now)) return;
       survivor.vx = 0;
       survivor.vy = 0;
       return;
     }
 
+    if (maybeUseAISurvivorSkill(survivor, hunterDistance, now)) return;
     maybeThrowAIPackage(survivor, hunterDistance, now);
     if (maybeUseAIStitchPack(survivor, hunterDistance, now)) return;
 
@@ -1482,6 +1665,48 @@
     if (!pressured && !rescueCarry) return false;
     if (!hasWalkableLine(survivor.x, survivor.y, hunter.x, hunter.y, PACKAGE_RADIUS)) return false;
     throwPackage(survivor, Math.atan2(hunter.y - survivor.y, hunter.x - survivor.x), now);
+    return true;
+  }
+
+  function maybeUseAISurvivorSkill(survivor, hunterDistance, now) {
+    if (maybeUseAIClockmakerSkill(survivor, hunterDistance, now)) return true;
+    if (maybeUseAIActorSkill(survivor, hunterDistance, now)) return true;
+    if (maybeUseAIPerfumerSkill(survivor, hunterDistance, now)) return true;
+    return false;
+  }
+
+  function maybeUseAIClockmakerSkill(survivor, hunterDistance, now) {
+    if (!isClockmaker(survivor)) return false;
+    const pressured = hunter.target === survivor || hunterDistance < 360;
+    if (canActivateTimeRewind(survivor, now) && (survivor.state === "downed" || survivor.state === "injured" || hunterDistance < 240)) {
+      activateTimeRewind(survivor, now);
+      return true;
+    }
+    if (pressured && canPlaceTimeDevice(survivor, now)) {
+      placeTimeDevice(survivor, now);
+      return true;
+    }
+    return false;
+  }
+
+  function maybeUseAIActorSkill(survivor, hunterDistance, now) {
+    if (!canUseMagicShow(survivor, now)) return false;
+    const seatedTarget = findNearestSeatedSurvivor(survivor, Infinity);
+    if (seatedTarget && hunterDistance > 180) {
+      survivor.magicShowMode = "rescue";
+      return performMagicShow(survivor, now);
+    }
+    if ((hunter.target === survivor && hunterDistance < 430) || hunterDistance < 220 || (hunter.carrying && hunterDistance < 360)) {
+      survivor.magicShowMode = "hunter";
+      return performMagicShow(survivor, now);
+    }
+    return false;
+  }
+
+  function maybeUseAIPerfumerSkill(survivor, hunterDistance, now) {
+    if (!canUsePerfumeMist(survivor, now)) return false;
+    if (hunter.target !== survivor && hunterDistance >= PERFUMER_SENSE_NEAR_RANGE) return false;
+    usePerfumeSkill(survivor, now);
     return true;
   }
 
@@ -1572,13 +1797,13 @@
   }
 
   function updateAIObjective(survivor, dt, now, hunterDistance) {
+    if (isHatchOpen()) {
+      return updateAIHatchEscape(survivor, dt, now);
+    }
+
     if (!isAISafeForObjective(survivor, hunterDistance)) {
       survivor.objectiveDecision = null;
       return false;
-    }
-
-    if (isHatchOpen()) {
-      return updateAIHatchEscape(survivor, dt, now);
     }
 
     if (areExitsPowered()) {
@@ -2503,6 +2728,7 @@
     const desiredAttackAngle = Math.atan2(toTargetY, toTargetX);
     hunter.angle = turnToward(hunter.angle, desiredAttackAngle, hunter.turnSpeed * dt);
 
+    maybeUseAILanternKeeperSkill(target, now, distance);
     if (!isActorDecoyTarget(target) && maybeStartAISawDash(target, now, distance)) return;
 
     if (isSurvivorInHunterAttackCone(target) && canAttack) {
@@ -2558,7 +2784,13 @@
     if (hunter.assistSkill === "listen") useAssistListen(now);
     else if (hunter.assistSkill === "peeper") useAssistPeeper(now);
     else if (hunter.assistSkill === "patroller") useAssistPatroller(now);
-    else if (hunter.assistSkill === "blink") useAssistBlink(now);
+    else if (hunter.assistSkill === "blink") {
+      if (isHunterDisplacementBlocked(now)) showAssistAlert("幻香封锁位移", now, 900);
+      else useAssistBlink(now);
+    } else if (hunter.assistSkill === "shift") {
+      if (isHunterDisplacementBlocked(now)) showAssistAlert("幻香封锁位移", now, 900);
+      else useAssistShift(now);
+    }
   }
 
   function setHunterAssistCooldown(now) {
@@ -2639,7 +2871,84 @@
     hunter.pendingBlinkAttackUntil = 0;
   }
 
+  function getShiftDestination() {
+    const target = getAimTargetFromPointer(null, null, true) || {
+      x: hunter.x + Math.cos(hunter.angle) * ASSIST_SHIFT_RANGE,
+      y: hunter.y + Math.sin(hunter.angle) * ASSIST_SHIFT_RANGE
+    };
+    const dx = target.x - hunter.x;
+    const dy = target.y - hunter.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance < 1) return findNearestSafePosition(hunter.x, hunter.y, hunter.radius);
+    const scale = Math.min(ASSIST_SHIFT_RANGE, distance) / distance;
+    return findNearestSafePosition(
+      hunter.x + dx * scale,
+      hunter.y + dy * scale,
+      hunter.radius
+    );
+  }
+
+  function useAssistShift(now) {
+    if (activeShiftPortals) return;
+    const near = findNearestSafePosition(hunter.x, hunter.y, hunter.radius);
+    const far = getShiftDestination();
+    if (distanceBetween(near, far) < ASSIST_SHIFT_RADIUS * 2) {
+      showAssistAlert("移形距离太近", now);
+      return;
+    }
+    activeShiftPortals = {
+      near,
+      far,
+      usesLeft: ASSIST_SHIFT_USES,
+      until: now + ASSIST_SHIFT_DURATION,
+      lockoutUntil: now + ASSIST_SHIFT_LOCKOUT,
+      armed: false
+    };
+    showAssistAlert("移形门开启", now);
+  }
+
+  function finishAssistShift(now) {
+    if (!activeShiftPortals) return;
+    activeShiftPortals = null;
+    setHunterAssistCooldown(now);
+  }
+
+  function getShiftPortalExit(portal) {
+    if (!activeShiftPortals) return null;
+    if (portal === activeShiftPortals.near) return activeShiftPortals.far;
+    if (portal === activeShiftPortals.far) return activeShiftPortals.near;
+    return null;
+  }
+
+  function teleportHunterThroughShiftPortal(portal, now) {
+    const exit = getShiftPortalExit(portal);
+    if (!exit || !activeShiftPortals) return;
+    const angle = Math.atan2(exit.y - portal.y, exit.x - portal.x);
+    const safe = findNearestSafePosition(
+      exit.x + Math.cos(angle) * (ASSIST_SHIFT_RADIUS + hunter.radius + 8),
+      exit.y + Math.sin(angle) * (ASSIST_SHIFT_RADIUS + hunter.radius + 8),
+      hunter.radius
+    );
+    hunter.x = safe.x;
+    hunter.y = safe.y;
+    hunter.vx = 0;
+    hunter.vy = 0;
+    hunter.path = [];
+    hunter.pathGoal = null;
+    hunter.repathAt = 0;
+    hunter.angle = angle;
+    activeShiftPortals.usesLeft -= 1;
+    activeShiftPortals.lockoutUntil = now + ASSIST_SHIFT_LOCKOUT;
+    activeShiftPortals.armed = false;
+    showAssistAlert(`移形 ${activeShiftPortals.usesLeft}/${ASSIST_SHIFT_USES}`, now, 900);
+    if (activeShiftPortals.usesLeft <= 0) finishAssistShift(now);
+  }
+
   function handlePlayerSkill(now) {
+    if (selectedRole === PLAYER_ROLE.survivor && canUsePerfumeMist(player, now)) {
+      usePerfumeSkill(player, now);
+      return;
+    }
     if (selectedRole === PLAYER_ROLE.survivor && canUseMagicShow(player, now)) {
       performMagicShow(player, now);
       return;
@@ -2668,6 +2977,10 @@
       switchTwinForm(now);
       return;
     }
+    if (selectedRole === PLAYER_ROLE.hunter && isSoulBinder()) {
+      startSoulSiphonSelection(now);
+      return;
+    }
     if (canRecallSoulLamp(now)) {
       recallSoulLamp(findNearestSoulLamp(hunter, SOUL_LAMP_RECALL_RANGE), now);
       return;
@@ -2685,6 +2998,10 @@
     }
     if (canShadowTeleport(now)) {
       shadowTeleportToSoulLamp(now);
+      return;
+    }
+    if (selectedRole === PLAYER_ROLE.hunter && isSoulBinder()) {
+      startSoulReturnSelection(now);
       return;
     }
     if (selectedRole === PLAYER_ROLE.hunter && isTwinSword()) {
@@ -2722,7 +3039,8 @@
       applyHunterHit(target, now, {
         applyBoneBleed: isSawbone(),
         detentionDown: isDetentionActive(),
-        damage: getHunterBasicAttackDamage()
+        damage: getHunterBasicAttackDamage(),
+        basicAttack: true
       });
       hunter.wipeUntil = isBalloonAttack ? now : now + getHunterHitRecoveryDuration();
       return;
@@ -2738,6 +3056,32 @@
     if (distance < hunter.attackRange * 0.8 || distance > config.range * 0.9) return false;
     if (!hasWalkableLine(hunter.x, hunter.y, target.x, target.y, hunter.radius)) return false;
     startSawDash(now, target);
+    return true;
+  }
+
+  function canAIPlaceSoulLamp(now) {
+    return matchStarted &&
+      selectedRole !== PLAYER_ROLE.hunter &&
+      isLanternKeeper() &&
+      !hunter.action &&
+      !hunter.carrying &&
+      now >= hunter.stunnedUntil &&
+      now >= hunter.wipeUntil &&
+      now >= nextSoulLampAt &&
+      soulLamps.length < getSoulLampLimit();
+  }
+
+  function maybeUseAILanternKeeperSkill(target, now, distance) {
+    if (!target || isActorDecoyTarget(target) || !canAIPlaceSoulLamp(now)) return false;
+    const targetPressured = distance < SOUL_LAMP_RANGE * 1.7;
+    const objectivePressure = target.action && ["repairing", "openingGate", "rescuing", "healing", "dismantlingLamp"].includes(target.action.kind);
+    if (!targetPressured && !objectivePressure) return false;
+    const nearbyLamp = soulLamps.some((lamp) => {
+      return distanceBetween(lamp, hunter) < SOUL_LAMP_RANGE * 0.72 ||
+        distanceBetween(lamp, target) < SOUL_LAMP_RANGE * 0.86;
+    });
+    if (nearbyLamp) return false;
+    placeSoulLamp(now);
     return true;
   }
 
@@ -3128,6 +3472,7 @@
     if (isSurvivorInvisible(survivor, now)) return;
     const terrorShock = isTerrorShockVulnerable(survivor);
     if (options.applyBoneBleed) applyBoneBleed(survivor, now);
+    if (options.basicAttack && isSoulBinder()) applySoulBinderBasicHit(survivor, now);
     if (survivor.action && (survivor.action.kind === "healing" || survivor.action.kind === "beingHealed")) {
       cancelHealing(survivor.action);
       survivor.action = null;
@@ -3159,6 +3504,133 @@
 
     applySurvivorDamage(survivor, now, options.damage ?? 1);
     triggerActorHitPerformance(survivor, now);
+  }
+
+  function applySoulBinderBasicHit(survivor, now) {
+    addSoulMark(survivor, 1);
+    if (hunter.soulSiphonTarget !== survivor || now > (hunter.soulSiphonUntil || 0)) return;
+    getSurvivors().forEach((target) => {
+      if (target !== survivor && getSoulMarks(target) > 0) addSoulMark(target, 1);
+    });
+    hunter.soulSiphonTarget = null;
+    hunter.soulSiphonUntil = 0;
+    hunter.soulSelectionMode = null;
+    showAssistAlert("摄魂命中", now, 1200);
+  }
+
+  function canStartSoulSiphon(now) {
+    return matchStarted &&
+      selectedRole === PLAYER_ROLE.hunter &&
+      isSoulBinder() &&
+      !hunter.action &&
+      !hunter.carrying &&
+      now >= hunter.stunnedUntil &&
+      now >= hunter.wipeUntil &&
+      now >= (hunter.nextSoulSiphonAt || 0) &&
+      getSurvivors().some((survivor) => getSoulMarks(survivor) > 0 && !survivor.escaped && survivor.state !== "eliminated");
+  }
+
+  function startSoulSiphonSelection(now) {
+    if (!canStartSoulSiphon(now)) {
+      showAssistAlert(getSoulSiphonBlockedReason(now), now, 1200);
+      return false;
+    }
+    hunter.soulSelectionMode = "siphon";
+    hunter.soulSelectionCandidate = null;
+    hunter.soulSelectionCount = 0;
+    hunter.soulSelectionAt = now;
+    showAssistAlert("双击魂印目标", now, 1200);
+    return true;
+  }
+
+  function getSoulSiphonBlockedReason(now) {
+    if (!matchStarted || selectedRole !== PLAYER_ROLE.hunter || !isSoulBinder()) return "摄魂不可用";
+    if (hunter.action || hunter.carrying || now < hunter.stunnedUntil || now < hunter.wipeUntil) return "正在行动";
+    if (now < (hunter.nextSoulSiphonAt || 0)) return `摄魂冷却${formatCooldown(hunter.nextSoulSiphonAt - now)}`;
+    return "没有魂印目标";
+  }
+
+  function startSoulSiphon(target, now) {
+    if (!canStartSoulSiphon(now) || !target || getSoulMarks(target) <= 0 || target.escaped || target.state === "eliminated") return false;
+    hunter.soulSiphonTarget = target;
+    hunter.soulSiphonUntil = now + SOUL_SIPHON_DURATION;
+    hunter.nextSoulSiphonAt = now + SOUL_SIPHON_COOLDOWN;
+    hunter.soulSelectionMode = null;
+    showAssistAlert(`摄魂 ${target.name}`, now, 1200);
+    return true;
+  }
+
+  function canBorrowSoul(now) {
+    return matchStarted &&
+      selectedRole === PLAYER_ROLE.hunter &&
+      isSoulBinder() &&
+      !hunter.action &&
+      !hunter.carrying &&
+      now >= hunter.stunnedUntil &&
+      now >= hunter.wipeUntil &&
+      now >= (hunter.nextBorrowSoulAt || 0) &&
+      getTotalSoulMarks() > 0;
+  }
+
+  function borrowSoul(now) {
+    if (!canBorrowSoul(now)) return false;
+    const total = getTotalSoulMarks();
+    getSurvivors().forEach((survivor) => {
+      survivor.soulMarks = 0;
+    });
+    hunter.borrowSoulSpeedBonus = total * BORROW_SOUL_SPEED_PER_MARK;
+    hunter.borrowSoulRecoveryBonus = total * BORROW_SOUL_RECOVERY_PER_MARK;
+    hunter.borrowSoulUntil = now + BORROW_SOUL_DURATION;
+    hunter.nextBorrowSoulAt = now + BORROW_SOUL_COOLDOWN;
+    showAssistAlert(`借魂 ${total}层`, now, 1200);
+    return true;
+  }
+
+  function canStartSoulReturnSelection(now) {
+    return matchStarted &&
+      selectedRole === PLAYER_ROLE.hunter &&
+      isSoulBinder() &&
+      hunter.presenceTier >= 2 &&
+      !hunter.action &&
+      !hunter.carrying &&
+      now >= hunter.stunnedUntil &&
+      now >= hunter.wipeUntil &&
+      now >= (hunter.nextSoulReturnAt || 0) &&
+      getSurvivors().some((survivor) => survivor.state === "seated");
+  }
+
+  function startSoulReturnSelection(now) {
+    if (!canStartSoulReturnSelection(now)) {
+      showAssistAlert(getSoulReturnBlockedReason(now), now, 1200);
+      return false;
+    }
+    hunter.soulSelectionMode = "return";
+    hunter.soulSelectionCandidate = null;
+    hunter.soulSelectionCount = 0;
+    hunter.soulSelectionAt = now;
+    showAssistAlert("双击上椅目标", now, 1200);
+    return true;
+  }
+
+  function getSoulReturnBlockedReason(now) {
+    if (!matchStarted || selectedRole !== PLAYER_ROLE.hunter || !isSoulBinder()) return "归途不可用";
+    if (hunter.presenceTier < 2) return "需要二阶";
+    if (hunter.action || hunter.carrying || now < hunter.stunnedUntil || now < hunter.wipeUntil) return "正在行动";
+    if (now < (hunter.nextSoulReturnAt || 0)) return `归途冷却${formatCooldown(hunter.nextSoulReturnAt - now)}`;
+    return "没有上椅目标";
+  }
+
+  function applySoulReturn(target, now) {
+    if (!canStartSoulReturnSelection(now) || !target || target.state !== "seated") return false;
+    target.soulReturnUntil = now + SOUL_RETURN_DURATION;
+    hunter.nextSoulReturnAt = now + SOUL_RETURN_COOLDOWN;
+    hunter.soulSelectionMode = null;
+    showAssistAlert(`引魂归途 ${target.name}`, now, 1200);
+    return true;
+  }
+
+  function getTotalSoulMarks() {
+    return getSurvivors().reduce((total, survivor) => total + getSoulMarks(survivor), 0);
   }
 
   function triggerActorHitPerformance(survivor, now) {
@@ -3263,10 +3735,12 @@
     packageProjectiles.length = 0;
     stitchPackDrops.length = 0;
     actorDecoys.length = 0;
+    perfumeMists.length = 0;
     twinShadowZones.length = 0;
     twinSwordProjectiles.length = 0;
     twinAim = null;
     activePatroller = null;
+    activeShiftPortals = null;
     nextSoulLampAt = 0;
     lanternAlert = null;
 
@@ -3295,6 +3769,19 @@
     hunter.nextAssistAt = 0;
     hunter.pendingBlinkAttackUntil = 0;
     hunter.assistListenUntil = 0;
+    hunter.nextSoulSiphonAt = 0;
+    hunter.soulSiphonTarget = null;
+    hunter.soulSiphonUntil = 0;
+    hunter.soulSiphonPenaltyUntil = 0;
+    hunter.nextBorrowSoulAt = 0;
+    hunter.borrowSoulUntil = 0;
+    hunter.borrowSoulSpeedBonus = 0;
+    hunter.borrowSoulRecoveryBonus = 0;
+    hunter.nextSoulReturnAt = 0;
+    hunter.soulSelectionMode = null;
+    hunter.soulSelectionCandidate = null;
+    hunter.soulSelectionCount = 0;
+    hunter.soulSelectionAt = 0;
     hunter.nextSawDashAt = 0;
     hunter.sawAttackLockedUntil = 0;
     hunter.shortSawAvailableUntil = 0;
@@ -3600,6 +4087,8 @@
     survivor.healProgress = 0;
     survivor.damageProgress = 0;
     survivor.bleedStacks = [];
+    survivor.soulMarks = 0;
+    survivor.soulReturnUntil = 0;
     survivor.shackleValue = 0;
     survivor.lastShackleAt = 0;
     survivor.shackledUntil = 0;
@@ -3624,6 +4113,9 @@
     survivor.nextPackageAt = 0;
     survivor.nextTimeRewindAt = 0;
     survivor.nextMagicShowAt = 0;
+    survivor.nextPerfumeMistAt = 0;
+    survivor.perfumeBoostUntil = 0;
+    survivor.perfumeUltimateCharges = 0;
     survivor.magicShowMode = "rescue";
     survivor.path = [];
     survivor.pathGoal = null;
@@ -3778,6 +4270,10 @@
   }
 
   function handlePlayerUse(now) {
+    if (selectedRole === PLAYER_ROLE.hunter && isSoulBinder()) {
+      borrowSoul(now);
+      return;
+    }
     if (!matchStarted || selectedRole !== PLAYER_ROLE.survivor) return;
     if (player.action && player.action.kind === "dismantlingLamp") {
       player.action = null;
@@ -3930,6 +4426,26 @@
   function findNearestHatch(actor, range) {
     if (!isHatchOpen()) return null;
     return distanceBetween(actor, hatch) < range ? hatch : null;
+  }
+
+  function isInPerfumeMist(actor, kind = null, now = performance.now()) {
+    return perfumeMists.some((mist) => {
+      if (now >= mist.until) return false;
+      if (kind && mist.kind !== kind) return false;
+      return distanceBetween(actor, mist) <= mist.radius;
+    });
+  }
+
+  function isHunterInPerfumeMist(now = performance.now()) {
+    return isInPerfumeMist(hunter, "mist", now);
+  }
+
+  function isInPerfumeUltimateMist(actor, now = performance.now()) {
+    return isInPerfumeMist(actor, "ultimate", now);
+  }
+
+  function isHunterDisplacementBlocked(now = performance.now()) {
+    return isInPerfumeUltimateMist(hunter, now);
   }
 
   function findNearestSoulLamp(actor, range) {
@@ -4149,7 +4665,7 @@
   }
 
   function performMagicShow(actor, now) {
-    if (!canUseMagicShow(actor, now)) return;
+    if (!canUseMagicShow(actor, now)) return false;
     const success = actor.magicShowMode === "hunter"
       ? magicShowMoveHunter(actor, now)
       : magicShowMoveSeatedSurvivor(actor, now);
@@ -4158,10 +4674,78 @@
         text: actor.magicShowMode === "hunter" ? "附近没有空椅子" : "没有可转移的上椅队友",
         until: now + 1400
       };
-      return;
+      return false;
     }
     actor.nextMagicShowAt = now + MAGIC_SHOW_COOLDOWN;
     chasePulseUntil = now + 520;
+    return true;
+  }
+
+  function usePerfumeSkill(actor, now) {
+    if (!canUsePerfumeMist(actor, now)) return false;
+    if (hasPerfumeUltimate(actor)) {
+      releasePerfumeUltimate(actor, now);
+      return true;
+    }
+    releasePerfumeMist(actor, now);
+    return true;
+  }
+
+  function releasePerfumeMist(actor, now) {
+    perfumeMists.push({
+      id: ++perfumeMistId,
+      kind: "mist",
+      owner: actor,
+      x: actor.x,
+      y: actor.y,
+      radius: PERFUME_MIST_RADIUS,
+      until: now + PERFUME_MIST_DURATION
+    });
+    actor.perfumeBoostUntil = now + PERFUME_MIST_DURATION;
+    actor.perfumeUltimateCharges = Math.min(PERFUME_ULTIMATE_CHARGES, (actor.perfumeUltimateCharges || 0) + 1);
+    actor.nextPerfumeMistAt = now + PERFUME_MIST_COOLDOWN;
+    showAssistAlert(actor.perfumeUltimateCharges >= PERFUME_ULTIMATE_CHARGES ? "终极香炉已点燃" : "迷香", now, 1100);
+  }
+
+  function releasePerfumeUltimate(actor, now) {
+    const mist = {
+      id: ++perfumeMistId,
+      kind: "ultimate",
+      owner: actor,
+      x: actor.x,
+      y: actor.y,
+      radius: PERFUME_ULTIMATE_RADIUS,
+      until: now + PERFUME_ULTIMATE_DURATION
+    };
+    perfumeMists.push(mist);
+    actor.perfumeUltimateCharges = 0;
+    actor.nextPerfumeMistAt = now + PERFUME_MIST_COOLDOWN;
+    spawnPerfumeIllusions(actor, mist, now);
+    showAssistAlert("幻香大阵", now, 1200);
+  }
+
+  function spawnPerfumeIllusions(actor, mist, now) {
+    for (let index = 0; index < PERFUME_ULTIMATE_ILLUSIONS; index += 1) {
+      const angle = -Math.PI / 2 + index * (Math.PI * 2 / PERFUME_ULTIMATE_ILLUSIONS);
+      const distance = mist.radius * 0.55;
+      actorDecoys.push({
+        id: ++actorDecoyId,
+        kind: "actorDecoy",
+        name: actor.name,
+        owner: actor,
+        x: mist.x + Math.cos(angle) * distance,
+        y: mist.y + Math.sin(angle) * distance,
+        state: "healthy",
+        damageProgress: 0,
+        radius: actor.radius,
+        angle,
+        vx: Math.cos(angle + Math.PI / 2) * 72,
+        vy: Math.sin(angle + Math.PI / 2) * 72,
+        fill: actor.fill,
+        core: actor.core,
+        until: now + PERFUME_ULTIMATE_DURATION
+      });
+    }
   }
 
   function magicShowMoveSeatedSurvivor(actor, now) {
@@ -5389,6 +5973,7 @@
     }
     target.healProgress = 0;
     target.damageProgress = 0;
+    clearOneSoulMark(target);
     target.stitchPack = null;
     target.action = null;
     target.kiteDecision = null;
@@ -5797,6 +6382,7 @@
     ctx.translate(-camera.x, -camera.y);
 
     drawGround();
+    drawPerfumeMists();
     drawObjectives();
     drawSoulLamps();
     drawHunterAssistObjects();
@@ -5810,18 +6396,21 @@
     drawPackageAim();
     drawTwinAim();
     drawBlinkAim();
+    drawShiftAim();
     drawTwinSwordProjectiles();
     drawPackageProjectiles();
+    drawPerfumerSenseAuras();
     drawHunter();
     drawTeammates();
     drawPlayer();
-    drawVignette();
+    drawHeartbeatIndicators();
 
     ctx.restore();
+    drawPerfumeVisionOverlay();
+    drawHunterTinnitusIndicator();
     drawMatchResult();
     drawLanternAlert();
     drawRepairCalibration();
-    drawMiniMap();
     updateReadouts();
   }
 
@@ -5847,6 +6436,78 @@
     ctx.fillStyle = "rgba(217, 183, 106, 0.06)";
     ctx.fillRect(54, 54, world.width - 108, world.height - 108);
 
+  }
+
+  function drawPerfumeMists() {
+    const now = performance.now();
+    perfumeMists.forEach((mist) => {
+      if (now >= mist.until) return;
+      const progress = Math.max(0, Math.min(1, (mist.until - now) / (mist.kind === "ultimate" ? PERFUME_ULTIMATE_DURATION : PERFUME_MIST_DURATION)));
+      const pulse = 1 + Math.sin(now / 260 + mist.id) * 0.035;
+      ctx.save();
+      ctx.translate(mist.x, mist.y);
+      ctx.scale(pulse, pulse);
+      const gradient = ctx.createRadialGradient(0, 0, mist.radius * 0.18, 0, 0, mist.radius);
+      if (mist.kind === "ultimate") {
+        gradient.addColorStop(0, `rgba(98, 188, 255, ${0.26 * progress})`);
+        gradient.addColorStop(0.72, `rgba(75, 146, 228, ${0.18 * progress})`);
+        gradient.addColorStop(1, "rgba(75, 146, 228, 0)");
+        ctx.strokeStyle = `rgba(156, 220, 255, ${0.55 * progress})`;
+        ctx.lineWidth = 4;
+      } else {
+        gradient.addColorStop(0, `rgba(190, 235, 255, ${0.24 * progress})`);
+        gradient.addColorStop(0.78, `rgba(117, 198, 255, ${0.15 * progress})`);
+        gradient.addColorStop(1, "rgba(117, 198, 255, 0)");
+        ctx.strokeStyle = `rgba(190, 235, 255, ${0.42 * progress})`;
+        ctx.lineWidth = 2.5;
+      }
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, mist.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.setLineDash(mist.kind === "ultimate" ? [18, 10] : [10, 8]);
+      ctx.beginPath();
+      ctx.arc(0, 0, mist.radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function drawPerfumerSenseAuras() {
+    if (isInfiniteSawboneMode()) return;
+    const now = performance.now();
+    getSurvivors().forEach((survivor) => {
+      if (!isPerfumer(survivor) || survivor.escaped || survivor.state === "eliminated") return;
+      const distance = distanceBetween(survivor, hunter);
+      if (distance > PERFUMER_SENSE_FAR_RANGE) return;
+      const near = distance <= PERFUMER_SENSE_NEAR_RANGE;
+      const pulse = 1 + Math.sin(now / 180) * 0.04;
+      const radius = (near ? 34 : 30) * pulse;
+      ctx.save();
+      ctx.translate(survivor.x, survivor.y);
+      ctx.strokeStyle = near ? "rgba(54, 128, 255, 0.9)" : "rgba(159, 222, 255, 0.76)";
+      ctx.fillStyle = near ? "rgba(54, 128, 255, 0.14)" : "rgba(159, 222, 255, 0.1)";
+      ctx.lineWidth = near ? 4 : 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function drawPerfumeVisionOverlay() {
+    if (selectedRole !== PLAYER_ROLE.hunter || !isHunterInPerfumeMist(performance.now())) return;
+    const inner = Math.min(width, height) * 0.22;
+    const outer = Math.max(width, height) * 0.48;
+    const gradient = ctx.createRadialGradient(width / 2, height / 2, inner, width / 2, height / 2, outer);
+    gradient.addColorStop(0, "rgba(5, 9, 16, 0)");
+    gradient.addColorStop(0.68, "rgba(5, 9, 16, 0.56)");
+    gradient.addColorStop(1, "rgba(5, 9, 16, 0.86)");
+    ctx.save();
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
   }
 
   function drawRects(items, fill, stroke) {
@@ -6131,6 +6792,11 @@
       ctx.restore();
     });
 
+    if (activeShiftPortals) {
+      drawShiftPortal(activeShiftPortals.near, now, "近");
+      drawShiftPortal(activeShiftPortals.far, now, "远");
+    }
+
     if (!activePatroller) return;
     ctx.save();
     ctx.translate(activePatroller.x, activePatroller.y);
@@ -6150,7 +6816,7 @@
   }
 
   function drawBlinkAim() {
-    if (selectedRole !== PLAYER_ROLE.hunter || hunter.assistSkill !== "blink" || activePatroller || !canUseHunterAssist(performance.now())) return;
+    if (selectedRole !== PLAYER_ROLE.hunter || hunter.assistSkill !== "blink" || activePatroller || isHunterDisplacementBlocked(performance.now()) || !canUseHunterAssist(performance.now())) return;
     const destination = getBlinkDestination();
     ctx.save();
     ctx.strokeStyle = "rgba(217, 183, 106, 0.72)";
@@ -6166,6 +6832,53 @@
     ctx.arc(destination.x, destination.y, hunter.radius + 5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawShiftAim() {
+    if (selectedRole !== PLAYER_ROLE.hunter || hunter.assistSkill !== "shift" || activePatroller || activeShiftPortals || isHunterDisplacementBlocked(performance.now()) || !canUseHunterAssist(performance.now())) return;
+    const destination = getShiftDestination();
+    ctx.save();
+    ctx.strokeStyle = "rgba(185, 112, 255, 0.72)";
+    ctx.fillStyle = "rgba(185, 112, 255, 0.1)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([12, 8]);
+    ctx.beginPath();
+    ctx.moveTo(hunter.x, hunter.y);
+    ctx.lineTo(destination.x, destination.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(destination.x, destination.y, ASSIST_SHIFT_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawShiftPortal(portal, now, label) {
+    const pulse = 0.88 + Math.sin(now / 150) * 0.12;
+    ctx.save();
+    ctx.translate(portal.x, portal.y);
+    ctx.scale(pulse, pulse);
+    ctx.fillStyle = "rgba(83, 51, 118, 0.38)";
+    ctx.strokeStyle = "rgba(246, 232, 255, 0.86)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, ASSIST_SHIFT_RADIUS, ASSIST_SHIFT_RADIUS * 0.72, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(185, 112, 255, 0.86)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, ASSIST_SHIFT_RADIUS * 0.62, ASSIST_SHIFT_RADIUS * 0.42, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = "#f3e8ff";
+    ctx.font = "700 12px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, 0, 0);
     ctx.restore();
   }
 
@@ -6915,10 +7628,11 @@
     if (isSurvivorInvisible(player, now)) ctx.globalAlpha = 0.48;
     drawHumanoidCharacter(player, { type: "survivor", scale: 1.02, now });
     ctx.restore();
+    drawSoulSiphonFlame(player, now);
 
     if (player.action && ["repairing", "openingGate", "escaping", "rescuing", "dismantlingLamp"].includes(player.action.kind)) {
       drawSurvivorLabel(player);
-    } else if (player.state !== "healthy" || (player.damageProgress || 0) > 0 || (player.shackleValue || 0) > 0 || now < (player.shackledUntil || 0) || getBoneBleedStacks(player) > 0 || isSurvivorInvisible(player, now)) {
+    } else if (player.state !== "healthy" || (player.damageProgress || 0) > 0 || (player.shackleValue || 0) > 0 || now < (player.shackledUntil || 0) || getSoulMarks(player) > 0 || getBoneBleedStacks(player) > 0 || isSurvivorInvisible(player, now)) {
       drawSurvivorLabel(player);
     }
 
@@ -6951,6 +7665,7 @@
     if (isSurvivorInvisible(survivor, now)) ctx.globalAlpha = 0.48;
     drawHumanoidCharacter(survivor, { type: "survivor", scale: 0.98, now });
     ctx.restore();
+    drawSoulSiphonFlame(survivor, now);
 
     if (hunter.target === survivor) {
       ctx.save();
@@ -6963,13 +7678,51 @@
       ctx.restore();
     }
 
-    if (showName || survivor.state !== "healthy" || (survivor.damageProgress || 0) > 0 || (survivor.shackleValue || 0) > 0 || now < (survivor.shackledUntil || 0) || getBoneBleedStacks(survivor) > 0 || survivor.stitchPack || isSurvivorInvisible(survivor, now) || survivor.action && survivor.action.kind === "dismantlingLamp" || now < survivor.boostUntil) {
+    if (showName || survivor.state !== "healthy" || (survivor.damageProgress || 0) > 0 || (survivor.shackleValue || 0) > 0 || now < (survivor.shackledUntil || 0) || getSoulMarks(survivor) > 0 || getBoneBleedStacks(survivor) > 0 || survivor.stitchPack || isSurvivorInvisible(survivor, now) || survivor.action && survivor.action.kind === "dismantlingLamp" || now < survivor.boostUntil) {
       drawSurvivorLabel(survivor);
     }
   }
 
+  function drawSoulSiphonFlame(survivor, now) {
+    if (!isSoulBinder() || hunter.soulSiphonTarget !== survivor || now >= (hunter.soulSiphonUntil || 0)) return;
+    const pulse = 0.9 + Math.sin(now / 115) * 0.1;
+    const flicker = Math.sin(now / 72 + survivor.x * 0.02) * 3;
+    ctx.save();
+    ctx.translate(survivor.x, survivor.y - 62 + flicker);
+    ctx.scale(pulse, pulse);
+
+    const glow = ctx.createRadialGradient(0, 2, 2, 0, 2, 26);
+    glow.addColorStop(0, "rgba(180, 228, 255, 0.72)");
+    glow.addColorStop(1, "rgba(93, 178, 255, 0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 2, 26, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "rgba(93, 178, 255, 0.92)";
+    ctx.strokeStyle = "rgba(215, 239, 255, 0.9)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -24);
+    ctx.bezierCurveTo(-18, -8, -11, 14, 0, 18);
+    ctx.bezierCurveTo(12, 13, 20, -7, 0, -24);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(215, 239, 255, 0.86)";
+    ctx.beginPath();
+    ctx.moveTo(0, -12);
+    ctx.bezierCurveTo(-7, -3, -4, 8, 0, 10);
+    ctx.bezierCurveTo(5, 7, 8, -3, 0, -12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
   function drawSurvivorLabel(survivor) {
-    let label = survivor.name;
+    const displayName = getSurvivorDisplayName(survivor);
+    let label = displayName;
     if (survivor.action && survivor.action.kind === "healing") {
       label = "治疗中";
     } else if (survivor.action && survivor.action.kind === "beingHealed") {
@@ -6987,18 +7740,19 @@
     } else if (survivor.action && survivor.action.kind === "dismantlingLamp") {
       const progress = getActionProgress(survivor.action, performance.now());
       label = `拆灯 ${Math.round(progress * 100)}%`;
-    } else if (survivor.stitchPack) label = `${survivor.name} 针线 ${getStitchSecondsLeft(survivor)}秒`;
-    else if (performance.now() < (survivor.listenRevealUntil || 0)) label = `${survivor.name} 聆听`;
-    else if (performance.now() < (survivor.assistRevealUntil || 0)) label = `${survivor.name} 爆点`;
-    else if (performance.now() < (survivor.patrollerHoldUntil || 0)) label = `${survivor.name} 被咬`;
-    else if (isSurvivorInvisible(survivor)) label = `${survivor.name} 隐身`;
-    else if (performance.now() < (survivor.shackledUntil || 0)) label = `${survivor.name} 枷锁`;
-    else if ((survivor.shackleValue || 0) > 0) label = `${survivor.name} 枷锁${Math.round(survivor.shackleValue)}`;
-    else if ((survivor.damageProgress || 0) > 0) label = `${survivor.name} 裂伤${Math.round((survivor.damageProgress || 0) * 100)}%`;
-    else if (getBoneBleedStacks(survivor) > 0) label = `${survivor.name} 流血x${getBoneBleedStacks(survivor)}`;
-    else if (performance.now() < survivor.boostUntil) label = `${survivor.name} 加速`;
-    else if (survivor.state === "injured") label = `${survivor.name} 受伤`;
-    else if (survivor.state === "downed") label = `${survivor.name} 放血 ${getBleedOutSecondsLeft(survivor)}秒`;
+    } else if (survivor.stitchPack) label = `${displayName} 针线 ${getStitchSecondsLeft(survivor)}秒`;
+    else if (performance.now() < (survivor.listenRevealUntil || 0)) label = `${displayName} 聆听`;
+    else if (performance.now() < (survivor.assistRevealUntil || 0)) label = `${displayName} 爆点`;
+    else if (performance.now() < (survivor.patrollerHoldUntil || 0)) label = `${displayName} 被咬`;
+    else if (isSurvivorInvisible(survivor)) label = `${displayName} 隐身`;
+    else if (performance.now() < (survivor.shackledUntil || 0)) label = `${displayName} 枷锁`;
+    else if ((survivor.shackleValue || 0) > 0) label = `${displayName} 枷锁${Math.round(survivor.shackleValue)}`;
+    else if (getSoulMarks(survivor) > 0) label = `${displayName} 魂印${getSoulMarks(survivor)}`;
+    else if ((survivor.damageProgress || 0) > 0) label = `${displayName} 裂伤${Math.round((survivor.damageProgress || 0) * 100)}%`;
+    else if (getBoneBleedStacks(survivor) > 0) label = `${displayName} 流血x${getBoneBleedStacks(survivor)}`;
+    else if (performance.now() < survivor.boostUntil) label = `${displayName} 加速`;
+    else if (survivor.state === "injured") label = `${displayName} 受伤`;
+    else if (survivor.state === "downed") label = `${displayName} 放血 ${getBleedOutSecondsLeft(survivor)}秒`;
     else if (survivor.state === "carried") label = `挣扎 ${Math.round((survivor.carryProgress || 0) * 100)}%`;
     else if (survivor.state === "seated") label = `上椅 ${Math.round(survivor.chairProgress * 100)}%`;
 
@@ -7089,7 +7843,6 @@
     ctx.save();
     ctx.translate(hunter.x, hunter.y);
 
-    drawHunterAttackCone(now);
     if (isTwinSword() && (hunter.twinForm === TWIN_FORM_CHIYIN || now < (hunter.invisibleUntil || 0))) {
       ctx.globalAlpha = selectedRole === PLAYER_ROLE.hunter ? 0.62 : 0.28;
     }
@@ -7316,6 +8069,81 @@
     ctx.fillRect(camera.x, camera.y, width / camera.zoom, height / camera.zoom);
   }
 
+  function isSurvivorInHeartbeat(survivor) {
+    return Boolean(
+      survivor &&
+      !survivor.escaped &&
+      survivor.state !== "eliminated" &&
+      survivor.state !== "seated" &&
+      survivor.state !== "carried" &&
+      distanceBetween(survivor, hunter) <= HEARTBEAT_RANGE
+    );
+  }
+
+  function drawHeartbeatIndicators() {
+    if (isInfiniteSawboneMode()) return;
+    if (selectedRole !== PLAYER_ROLE.survivor) return;
+    const now = performance.now();
+    getSurvivors().forEach((survivor) => {
+      if (!isSurvivorInHeartbeat(survivor)) return;
+      const pulse = 0.82 + Math.sin(now / 130) * 0.18;
+      ctx.save();
+      ctx.translate(survivor.x + 26, survivor.y - 50);
+      ctx.scale(pulse, pulse);
+      ctx.fillStyle = "rgba(185, 112, 255, 0.92)";
+      ctx.strokeStyle = "rgba(246, 232, 255, 0.82)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 12);
+      ctx.bezierCurveTo(-28, -8, -14, -30, 0, -14);
+      ctx.bezierCurveTo(14, -30, 28, -8, 0, 12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function hasHunterTinnitus() {
+    if (isInfiniteSawboneMode() || selectedRole !== PLAYER_ROLE.hunter) return false;
+    return getSurvivors().some(isSurvivorInHeartbeat);
+  }
+
+  function drawHunterTinnitusIndicator() {
+    if (!hasHunterTinnitus()) return;
+    const now = performance.now();
+    const pulse = 0.9 + Math.sin(now / 120) * 0.1;
+    ctx.save();
+    ctx.translate(44, 112);
+    ctx.scale(pulse, pulse);
+    ctx.fillStyle = "rgba(83, 51, 118, 0.92)";
+    ctx.strokeStyle = "rgba(246, 232, 255, 0.86)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = "#f3e8ff";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.arc(-3, 0, 8, -Math.PI * 0.55, Math.PI * 0.62);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(-2, 2, 4, -Math.PI * 0.45, Math.PI * 0.5);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(9, -7);
+    ctx.lineTo(14, -12);
+    ctx.moveTo(11, 0);
+    ctx.lineTo(18, 0);
+    ctx.moveTo(9, 7);
+    ctx.lineTo(14, 12);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawMatchResult() {
     if (!matchResult) return;
 
@@ -7432,32 +8260,234 @@
   }
 
   function updateReadouts() {
-    speedReadout.textContent = isInfiniteSawboneMode() ? "娱乐模式" : getSurvivorReadout();
-    staminaReadout.textContent = isInfiniteSawboneMode()
-      ? "无限车"
-      : areExitsPowered()
-      ? getExitReadout()
-      : `${getCompletedRepairCount()}/${REPAIR_REQUIRED}`;
-    collisionReadout.textContent = getHunterReadout();
-
-    const repairsReadout = document.getElementById("repairsReadout");
-    const exitsReadout = document.getElementById("exitsReadout");
-    const escapeReadout = document.getElementById("escapeReadout");
-    const controlsReadout = document.getElementById("controlsReadout");
-    if (repairsReadout) repairsReadout.textContent = isInfiniteSawboneMode() ? "练车" : `${getCompletedRepairCount()}/${REPAIR_REQUIRED}`;
-    if (exitsReadout) exitsReadout.textContent = isInfiniteSawboneMode() ? "无目标" : getExitReadout();
-    if (escapeReadout) {
-      if (isInfiniteSawboneMode()) escapeReadout.textContent = "只有锯骨";
-      else {
-        const escapedCount = getSurvivors().filter((survivor) => survivor.escaped).length;
-        const eliminatedCount = getSurvivors().filter((survivor) => survivor.state === "eliminated").length;
-        escapeReadout.textContent = `${escapedCount}/${eliminatedCount}`;
-      }
-    }
-    if (controlsReadout) controlsReadout.textContent = selectedRole === PLAYER_ROLE.hunter
-      ? `${isTwinSword() ? "J / Q / E / R / F / T / G" : isLanternKeeper() ? "J / Q / F / Space" : isSawbone() ? "J / Q / Space" : "J / Space"}${hasHunterAssist() ? " / L" : ""}`
-      : isActor(player) ? "E / Q / F / Space" : hasSurvivorSkill(player) ? "E / Q / Space" : "E / Space";
+    updateCipherStatusReadout();
+    updateSurvivorStatusGrid();
+    updateCooldownPanel();
     updateTouchActions();
+  }
+
+  function updateCipherStatusReadout() {
+    if (!cipherStatusReadout) return;
+    if (isInfiniteSawboneMode()) {
+      cipherStatusReadout.textContent = "娱乐模式无密码机目标";
+      return;
+    }
+    const completed = Math.min(REPAIR_REQUIRED, getCompletedRepairCount());
+    const remaining = Math.max(0, REPAIR_REQUIRED - completed);
+    if (remaining === REPAIR_REQUIRED) {
+      cipherStatusReadout.textContent = "五台密码机尚未破译";
+    } else if (remaining > 0) {
+      cipherStatusReadout.textContent = `还剩${getChineseCount(remaining)}台密码机尚未破译`;
+    } else {
+      cipherStatusReadout.textContent = "五台密码机已破译，出口可开启";
+    }
+  }
+
+  function getChineseCount(value) {
+    return ["零", "一", "二", "三", "四", "五"][value] || String(value);
+  }
+
+  function updateSurvivorStatusGrid() {
+    if (!survivorStatusGrid) return;
+    const survivors = isInfiniteSawboneMode() ? [] : getSurvivors().slice(0, 4);
+    const nextHtml = survivors.map((survivor, index) => renderSurvivorStatusCard(survivor, index)).join("");
+    if (nextHtml === survivorStatusHtml) return;
+    survivorStatusHtml = nextHtml;
+    survivorStatusGrid.innerHTML = nextHtml;
+  }
+
+  function renderSurvivorStatusCard(survivor, index) {
+    const status = getSurvivorHudStatus(survivor);
+    const effects = getSurvivorNegativeEffects(survivor);
+    const selected = selectedRole === PLAYER_ROLE.hunter && isSoulBinder() && hunter.soulSelectionCandidate === survivor;
+    const targeted = hunter.soulSiphonTarget === survivor && performance.now() < (hunter.soulSiphonUntil || 0);
+    const effectHtml = effects.length
+      ? effects.map((effect) => `<span>${escapeHtml(effect)}</span>`).join("")
+      : "<em></em>";
+    return `
+      <div class="survivor-status-card state-${status.key}${selected ? " is-selected" : ""}${targeted ? " is-targeted" : ""}" data-survivor-index="${index}">
+        <div class="survivor-figure" aria-hidden="true">
+          <span class="figure-head"></span>
+          <span class="figure-body"></span>
+          <span class="figure-arm left"></span>
+          <span class="figure-arm right"></span>
+          <span class="figure-leg left"></span>
+          <span class="figure-leg right"></span>
+          <span class="figure-chair"></span>
+        </div>
+        <div class="survivor-meta">
+          <strong>${escapeHtml(getSurvivorDisplayName(survivor))}</strong>
+          <span>${escapeHtml(status.label)}</span>
+        </div>
+        <div class="negative-effects" aria-label="负面状态">${effectHtml}</div>
+      </div>
+    `;
+  }
+
+  function getSurvivorHudStatus(survivor) {
+    if (survivor.escaped) return { key: "escaped", label: "已逃出" };
+    if (survivor.state === "eliminated") return { key: "eliminated", label: "淘汰" };
+    if (survivor.state === "seated") return { key: "seated", label: "挂椅" };
+    if (survivor.state === "carried") return { key: "carried", label: "牵起" };
+    if (survivor.state === "downed") return { key: "downed", label: "倒地" };
+    if (survivor.state === "injured") return { key: "injured", label: "受伤" };
+    return { key: "healthy", label: "健康" };
+  }
+
+  function getSurvivorNegativeEffects(survivor) {
+    const now = performance.now();
+    const effects = [];
+    if (now < (survivor.shackledUntil || 0)) effects.push("枷锁");
+    else if ((survivor.shackleValue || 0) > 0) effects.push(`枷锁${Math.round(survivor.shackleValue)}`);
+    if ((survivor.damageProgress || 0) > 0) effects.push(`裂伤${Math.round(survivor.damageProgress * 100)}%`);
+    if (getSoulMarks(survivor) > 0) effects.push(`魂印${getSoulMarks(survivor)}`);
+    if (now < (survivor.soulReturnUntil || 0)) effects.push("归途");
+    if (getBoneBleedStacks(survivor, now) > 0) effects.push(`流血x${getBoneBleedStacks(survivor, now)}`);
+    if (now < (survivor.patrollerHoldUntil || 0)) effects.push("被咬");
+    else if (now < (survivor.patrollerSlowUntil || 0)) effects.push("减速");
+    if (survivor.stitchPack) effects.push(`针线${getStitchSecondsLeft(survivor)}s`);
+    return effects.slice(0, 3);
+  }
+
+  function handleSurvivorStatusPick(event, forceConfirm = false) {
+    if (selectedRole !== PLAYER_ROLE.hunter || !isSoulBinder() || !hunter.soulSelectionMode) return;
+    const card = event.target.closest(".survivor-status-card");
+    if (!card) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const index = Number(card.dataset.survivorIndex);
+    const survivor = getSurvivors()[index];
+    if (!survivor) return;
+    const now = performance.now();
+    const same = hunter.soulSelectionCandidate === survivor && now - (hunter.soulSelectionAt || 0) <= 900;
+    hunter.soulSelectionCandidate = survivor;
+    hunter.soulSelectionCount = forceConfirm ? 2 : same ? (hunter.soulSelectionCount || 1) + 1 : 1;
+    hunter.soulSelectionAt = now;
+    if (hunter.soulSelectionCount < 2) {
+      showAssistAlert(`再点一次 ${survivor.name}`, now, 900);
+      return;
+    }
+    if (hunter.soulSelectionMode === "siphon") {
+      if (!startSoulSiphon(survivor, now)) showAssistAlert("目标没有魂印", now, 900);
+      return;
+    }
+    if (hunter.soulSelectionMode === "return") {
+      if (!applySoulReturn(survivor, now)) showAssistAlert("目标未上椅", now, 900);
+    }
+  }
+
+  function updateCooldownPanel() {
+    if (!cooldownPanel) return;
+    const items = getCooldownItems(performance.now());
+    cooldownPanel.innerHTML = items.map((item) => {
+      return `
+        <div class="cooldown-chip${item.ready ? " is-ready" : " is-cooling"}">
+          <span>${escapeHtml(item.key)} · ${escapeHtml(item.name)}</span>
+          <strong>${escapeHtml(item.value)}</strong>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function getCooldownItems(now) {
+    if (!selectedRole) return [{ key: "操作", name: "准备", value: "选择角色", ready: true }];
+    const items = [{ key: "操作", name: "按键", value: getControlsLabel(), ready: true }];
+    if (selectedRole === PLAYER_ROLE.hunter) {
+      const attackCooldown = Math.max(0, hunter.wipeUntil - now, hunter.lastAttackAt + hunter.attackCooldown * 1000 - now);
+      items.push({ key: "J", name: "普攻", value: formatCooldown(attackCooldown), ready: attackCooldown <= 0 });
+      if (hunterHasSkill()) items.push(getHunterMainSkillCooldown(now));
+      if (isLanternKeeper() && hunter.presenceTier >= 1) {
+        const cooldown = getShadowTeleportCooldownLeft(now);
+        items.push({ key: "F", name: "灯影", value: formatCooldown(cooldown), ready: cooldown <= 0 && soulLamps.length > 0 });
+      }
+      if (isTwinSword()) {
+        const primaryCooldown = hunter.twinForm === TWIN_FORM_CHIYIN ? Math.max(0, (hunter.nextTwinShadowLockAt || 0) - now) : 0;
+        const secondaryCooldown = hunter.twinForm === TWIN_FORM_CHIYIN ? Math.max(0, (hunter.nextTwinShadowStrikeAt || 0) - now) : 0;
+        const dualCooldown = Math.max(0, (hunter.nextTwinDualCastAt || 0) - now);
+        items.push({ key: "E", name: getTwinPrimaryLabel(), value: formatCooldown(primaryCooldown), ready: primaryCooldown <= 0 });
+        items.push({ key: "R", name: getTwinSecondaryLabel(), value: formatCooldown(secondaryCooldown), ready: secondaryCooldown <= 0 });
+        items.push({ key: "F", name: "飞剑", value: String(hunter.twinFlyingSwords || 0), ready: (hunter.twinFlyingSwords || 0) > 0 });
+        items.push({ key: "G", name: "双生", value: formatCooldown(dualCooldown), ready: dualCooldown <= 0 });
+      }
+      if (isSoulBinder()) {
+        const borrowCooldown = Math.max(0, (hunter.nextBorrowSoulAt || 0) - now);
+        const returnCooldown = Math.max(0, (hunter.nextSoulReturnAt || 0) - now);
+        items.push({ key: "E", name: "借魂", value: hunter.presenceTier >= 1 ? getTotalSoulMarks() > 0 ? `${getTotalSoulMarks()}层` : borrowCooldown > 0 ? formatCooldown(borrowCooldown) : "无魂" : "一阶", ready: canBorrowSoul(now) });
+        items.push({ key: "F", name: "归途", value: hunter.presenceTier >= 2 ? formatCooldown(returnCooldown) : "二阶", ready: canStartSoulReturnSelection(now) });
+      }
+      if (hasHunterAssist()) {
+        const assistCooldown = getHunterAssistCooldownLeft(now);
+        const shiftValue = activeShiftPortals ? `门${activeShiftPortals.usesLeft} · ${Math.ceil(Math.max(0, activeShiftPortals.until - now) / 1000)}s` : null;
+        items.push({ key: "L", name: getHunterAssistName(), value: activePatroller ? "控制中" : shiftValue || formatCooldown(assistCooldown), ready: activePatroller || activeShiftPortals || assistCooldown <= 0 });
+      }
+      return items;
+    }
+
+    items.push({ key: "E", name: getSurvivorUseButtonLabel(), value: "交互", ready: true });
+    if (hasSurvivorSkill(player)) items.push(getSurvivorMainSkillCooldown(now));
+    if (isActor(player)) items.push({ key: "F", name: "魔术选项", value: player.magicShowMode === "hunter" ? "送监管" : "转椅", ready: true });
+    return items;
+  }
+
+  function getHunterMainSkillCooldown(now) {
+    if (isSawbone()) {
+      const cooldown = getSawDashCooldownLeft(now);
+      return { key: "Q", name: canUseShortSaw(now) ? "短锯" : "拉锯", value: formatCooldown(cooldown), ready: canStartSawDash(now) };
+    }
+    if (isLanternKeeper()) {
+      const cooldown = getSoulLampCooldownLeft(now);
+      return { key: "Q", name: canRecallSoulLamp(now) ? "收回灯" : "寄魂灯", value: formatCooldown(cooldown), ready: canPlaceSoulLamp(now) || canRecallSoulLamp(now) };
+    }
+    if (isSoulBinder()) {
+      const cooldown = Math.max(0, (hunter.nextSoulSiphonAt || 0) - now);
+      const active = hunter.soulSiphonTarget && now < (hunter.soulSiphonUntil || 0);
+      const hasMarks = getSurvivors().some((survivor) => getSoulMarks(survivor) > 0 && !survivor.escaped && survivor.state !== "eliminated");
+      return { key: "Q", name: "摄魂", value: active ? `${Math.ceil((hunter.soulSiphonUntil - now) / 1000)}s` : cooldown > 0 ? formatCooldown(cooldown) : hasMarks ? "可用" : "无魂", ready: active || canStartSoulSiphon(now) };
+    }
+    const cooldown = Math.max(0, (hunter.nextTwinFormAt || 0) - now);
+    return { key: "Q", name: hunter.twinForm === TWIN_FORM_CHIYIN ? "切赵" : "切池", value: formatCooldown(cooldown), ready: cooldown <= 0 };
+  }
+
+  function getSurvivorMainSkillCooldown(now) {
+    if (isActor(player)) {
+      const cooldown = getMagicShowCooldownLeft(player, now);
+      return { key: "Q", name: "魔术秀", value: formatCooldown(cooldown), ready: cooldown <= 0 };
+    }
+    if (isClockmaker(player)) {
+      const cooldown = getTimeRewindCooldownLeft(player, now);
+      return { key: "Q", name: canActivateTimeRewind(player, now) ? "回溯" : "时光装置", value: canActivateTimeRewind(player, now) ? "可用" : formatCooldown(cooldown), ready: canActivateTimeRewind(player, now) || cooldown <= 0 };
+    }
+    if (isMessenger(player)) {
+      const cooldown = getPackageCooldownLeft(player, now);
+      return { key: "Q", name: "邮包", value: formatCooldown(cooldown), ready: cooldown <= 0 };
+    }
+    if (isPerfumer(player)) {
+      const cooldown = getPerfumeCooldownLeft(player, now);
+      return { key: "Q", name: hasPerfumeUltimate(player) ? "幻香大阵" : "迷香", value: cooldown > 0 ? formatCooldown(cooldown) : hasPerfumeUltimate(player) ? "香炉" : `${player.perfumeUltimateCharges || 0}/${PERFUME_ULTIMATE_CHARGES}`, ready: cooldown <= 0 };
+    }
+    return { key: "Q", name: "针线包", value: canPlaceStitchPack(player) ? "可用" : "不可用", ready: canPlaceStitchPack(player) };
+  }
+
+  function getControlsLabel() {
+    if (selectedRole === PLAYER_ROLE.hunter) {
+      return `${isTwinSword() ? "J/Q/E/R/F/T/G" : isSoulBinder() ? "J/Q/E/F/Space" : isLanternKeeper() ? "J/Q/F/Space" : isSawbone() ? "J/Q/Space" : "J/Space"}${hasHunterAssist() ? "/L" : ""}`;
+    }
+    return isActor(player) ? "E/Q/F/Space" : hasSurvivorSkill(player) ? "E/Q/Space" : "E/Space";
+  }
+
+  function formatCooldown(ms) {
+    if (ms <= 0) return "可用";
+    return `${Math.ceil(ms / 1000)}s`;
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;"
+    })[char]);
   }
 
   function updateTouchActions() {
@@ -7510,6 +8540,15 @@
       if (cooldownLeft > 0) return `${Math.ceil(cooldownLeft / 1000)}s`;
       return "拉锯";
     }
+    if (isSoulBinder()) {
+      const now = performance.now();
+      if (hunter.soulSiphonTarget && now < (hunter.soulSiphonUntil || 0)) return "摄魂中";
+      const cooldownLeft = Math.max(0, (hunter.nextSoulSiphonAt || 0) - now);
+      if (canStartSoulSiphon(now)) return "摄魂";
+      if (cooldownLeft > 0) return `${Math.ceil(cooldownLeft / 1000)}s`;
+      if (getTotalSoulMarks() <= 0) return "无魂";
+      return "摄魂";
+    }
     if (!isLanternKeeper()) return "技能";
     const now = performance.now();
     if (canRecallSoulLamp(now)) return "收回灯";
@@ -7524,6 +8563,7 @@
     const now = performance.now();
     if (!hasHunterAssist()) return "使用";
     if (activePatroller) return "收回";
+    if (activeShiftPortals) return `门${activeShiftPortals.usesLeft}`;
     const cooldownLeft = getHunterAssistCooldownLeft(now);
     if (cooldownLeft > 0) return `${Math.ceil(cooldownLeft / 1000)}s`;
     return getHunterAssistName();
@@ -7531,8 +8571,17 @@
 
   function getHunterShadowButtonLabel() {
     if (isTwinSword()) return `飞剑${hunter.twinFlyingSwords || 0}`;
+    if (isSoulBinder()) {
+      const now = performance.now();
+      if (hunter.presenceTier < 2) return "二阶";
+      const cooldownLeft = Math.max(0, (hunter.nextSoulReturnAt || 0) - now);
+      if (canStartSoulReturnSelection(now)) return "归途";
+      if (cooldownLeft > 0) return `${Math.ceil(cooldownLeft / 1000)}s`;
+      return "归途";
+    }
     if (!isLanternKeeper()) return "灯影";
     if (hunter.presenceTier < 1) return "未解锁";
+    if (isHunterDisplacementBlocked(performance.now())) return "封锁";
     if (canShadowTeleport(performance.now())) return "灯影";
     if (soulLamps.length === 0) return "无灯";
     const cooldownLeft = getShadowTeleportCooldownLeft(performance.now());
@@ -7568,6 +8617,11 @@
       return "时光装置";
     }
     if (isApprentice(player)) return "放针线包";
+    if (isPerfumer(player)) {
+      const cooldownLeft = getPerfumeCooldownLeft(player, performance.now());
+      if (cooldownLeft > 0) return `${Math.ceil(cooldownLeft / 1000)}s`;
+      return hasPerfumeUltimate(player) ? "香炉" : "迷香";
+    }
     if (!isMessenger(player)) return "技能";
     const cooldownLeft = getPackageCooldownLeft(player, performance.now());
     if (cooldownLeft > 0) return `${Math.ceil(cooldownLeft / 1000)}s`;
@@ -7600,6 +8654,7 @@
     if (player.escaped) return `${label} · 已逃出`;
     if (isSurvivorInvisible(player)) return `${label} · 隐身`;
     if (isActor(player)) return `${label} · ${player.magicShowMode === "hunter" ? "送监管" : "转椅"}`;
+    if (isPerfumer(player)) return `${label} · ${hasPerfumeUltimate(player) ? "香炉已点燃" : `迷香${player.perfumeUltimateCharges || 0}/${PERFUME_ULTIMATE_CHARGES}`}`;
     if (isClockmaker(player) && player.timeDevice) return `${label} · 可回溯`;
     if (player.action && player.action.kind === "repairing" && player.action.calibration) return `${label} · 校准`;
     if (player.action && player.action.kind === "repairing") return `${label} · 修理`;
@@ -7640,12 +8695,14 @@
     const now = performance.now();
     updateHatchState();
     updateCarryStruggle(dt, now);
+    updateSoulBinderSystems(now);
     updateSoulLampAlerts(now);
     updateHunterAssistSystems(dt, now);
     updatePackageProjectiles(dt, now);
     updateStitchPackPickups(now);
     updateStitchPacks(now);
     updateTimeDevices(now);
+    updatePerfumeMists(now);
     updateActorDecoys(dt, now);
     updateBoneBleed(now);
     updateSawbonePendingWipe(now);
@@ -7655,6 +8712,23 @@
     updateSharedGateOpening(dt);
     updateBleedOutProgress(now);
     updateChairProgress(dt);
+  }
+
+  function updateSoulBinderSystems(now) {
+    if (!isSoulBinder()) return;
+    if (hunter.soulSiphonTarget && now >= (hunter.soulSiphonUntil || 0)) {
+      hunter.soulSiphonTarget = null;
+      hunter.soulSiphonUntil = 0;
+      hunter.soulSiphonPenaltyUntil = now + SOUL_SIPHON_FAIL_DURATION;
+      showAssistAlert("摄魂落空", now, 1000);
+    }
+    if (now >= (hunter.borrowSoulUntil || 0)) {
+      hunter.borrowSoulSpeedBonus = 0;
+      hunter.borrowSoulRecoveryBonus = 0;
+    }
+    getSurvivors().forEach((survivor) => {
+      if (now >= (survivor.soulReturnUntil || 0)) survivor.soulReturnUntil = 0;
+    });
   }
 
   function updateSoulLampAlerts(now) {
@@ -7686,6 +8760,8 @@
   }
 
   function updateHunterAssistSystems(dt, now) {
+    updateAssistShiftPortals(now);
+
     for (let index = assistPeeperWards.length - 1; index >= 0; index -= 1) {
       const ward = assistPeeperWards[index];
       if (now >= ward.until) {
@@ -7720,6 +8796,25 @@
     showAssistAlert(`巡视者咬中 ${target.name}`, now, 1400);
   }
 
+  function updateAssistShiftPortals(now) {
+    if (!activeShiftPortals) return;
+    if (now >= activeShiftPortals.until) {
+      showAssistAlert("移形门关闭", now, 1000);
+      finishAssistShift(now);
+      return;
+    }
+
+    const portals = [activeShiftPortals.near, activeShiftPortals.far];
+    const triggerDistance = ASSIST_SHIFT_RADIUS + hunter.radius + ASSIST_SHIFT_TRIGGER_RANGE;
+    const nearPortal = portals.find((portal) => distanceBetween(hunter, portal) <= triggerDistance);
+    if (!activeShiftPortals.armed) {
+      if (!nearPortal) activeShiftPortals.armed = true;
+      return;
+    }
+    if (!nearPortal || now < activeShiftPortals.lockoutUntil) return;
+    teleportHunterThroughShiftPortal(nearPortal, now);
+  }
+
   function updateHatchState() {
     hatch.spawned = getCompletedRepairCount() >= HATCH_REPAIR_REQUIRED;
     hatch.opened = hatch.spawned && getActiveSurvivors().length === 1;
@@ -7745,6 +8840,12 @@
       }
       moveActorSmart(decoy, decoy.vx * dt, decoy.vy * dt);
       if (Math.hypot(decoy.vx, decoy.vy) > 0.01) decoy.angle = Math.atan2(decoy.vy, decoy.vx);
+    }
+  }
+
+  function updatePerfumeMists(now) {
+    for (let index = perfumeMists.length - 1; index >= 0; index -= 1) {
+      if (now >= perfumeMists[index].until) perfumeMists.splice(index, 1);
     }
   }
 
@@ -7774,7 +8875,8 @@
     chairs.forEach((item) => {
       const survivor = item.survivor;
       if (!survivor || survivor.state !== "seated") return;
-      survivor.chairProgress = Math.min(1, survivor.chairProgress + ((dt * 1000) / CHAIR_ELIMINATION_DURATION) * getHunterBadgeMultiplier("chairSpeed"));
+      const soulReturnSpeed = isSoulBinder() && performance.now() < (survivor.soulReturnUntil || 0) ? SOUL_RETURN_CHAIR_SPEED : 1;
+      survivor.chairProgress = Math.min(1, survivor.chairProgress + ((dt * 1000) / CHAIR_ELIMINATION_DURATION) * getHunterBadgeMultiplier("chairSpeed") * soulReturnSpeed);
       if (survivor.chairProgress >= 1) eliminateSurvivor(survivor);
     });
   }
@@ -7804,6 +8906,7 @@
       survivor.healProgress = 0;
       survivor.action = null;
       survivor.boostUntil = 0;
+      clearOneSoulMark(survivor);
       survivor.stitchPack = null;
       survivor.healDecision = null;
       chasePulseUntil = now + 360;
@@ -7963,6 +9066,14 @@
     const badgeText = getBadgeReadout(PLAYER_ROLE.hunter, hunter.badges);
     const detentionText = isDetentionActive() ? " · 一刀斩" : "";
     const hits = hunter.presenceHits || 0;
+    if (isSoulBinder()) {
+      const marks = getTotalSoulMarks();
+      const siphon = hunter.soulSiphonTarget && performance.now() < (hunter.soulSiphonUntil || 0) ? ` · 摄${hunter.soulSiphonTarget.name}` : "";
+      const borrow = performance.now() < (hunter.borrowSoulUntil || 0) ? ` · 借魂+${Math.round((hunter.borrowSoulSpeedBonus || 0) * 100)}%` : "";
+      if ((hunter.presenceTier || 0) >= 2) return `引魂师${badgeText} · 二阶 · 魂${marks}${siphon}${borrow}${detentionText}`;
+      if ((hunter.presenceTier || 0) >= 1) return `引魂师${badgeText} · 一阶 ${hits}/${PRESENCE_TIER_TWO_HITS} · 魂${marks}${siphon}${borrow}${detentionText}`;
+      return `引魂师${badgeText} · 存在 ${hits}/${PRESENCE_TIER_ONE_HITS} · 魂${marks}${siphon}${borrow}${detentionText}`;
+    }
     if ((hunter.presenceTier || 0) >= 2) return `${getHunterCharacter().name}${badgeText} · 二阶${detentionText}`;
     if ((hunter.presenceTier || 0) >= 1) return `${getHunterCharacter().name}${badgeText} · 一阶 ${hits}/${PRESENCE_TIER_TWO_HITS}${detentionText}`;
     return `${getHunterCharacter().name}${badgeText} · 存在 ${hits}/${PRESENCE_TIER_ONE_HITS}${detentionText}`;
@@ -8177,6 +9288,10 @@
   assistButtons.forEach((button) => {
     button.addEventListener("click", () => selectHunterAssist(button.dataset.assist));
   });
+  if (survivorStatusGrid) {
+    survivorStatusGrid.addEventListener("pointerdown", handleSurvivorStatusPick);
+    survivorStatusGrid.addEventListener("dblclick", (event) => handleSurvivorStatusPick(event, true));
+  }
   if (characterBackButton) characterBackButton.addEventListener("click", backSetupStep);
   if (characterNextButton) characterNextButton.addEventListener("click", advanceSetupStep);
   if (hiddenUnlockForm) hiddenUnlockForm.addEventListener("submit", submitHiddenHunterCode);

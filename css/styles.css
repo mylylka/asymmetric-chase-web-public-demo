@@ -370,7 +370,7 @@ canvas {
   left: clamp(14px, 2.5vw, 32px);
   right: clamp(14px, 2.5vw, 32px);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(160px, 1fr) auto minmax(360px, 0.9fr);
   gap: 16px;
   align-items: start;
 }
@@ -392,79 +392,291 @@ h1 {
   text-shadow: 0 2px 18px rgba(0, 0, 0, 0.42);
 }
 
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(78px, 1fr));
-  gap: 8px;
+.cipher-banner {
+  justify-self: center;
+  min-width: min(420px, 42vw);
+  min-height: 46px;
+  padding: 12px 18px;
+  border: 1px solid rgba(185, 156, 255, 0.32);
+  border-radius: 8px;
+  background: rgba(18, 16, 28, 0.78);
+  color: #f0e8ff;
+  text-align: center;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
 }
 
-.stat,
-.progress-panel,
-.mini-map {
+.cipher-banner strong {
+  display: block;
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.survivor-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(78px, 1fr));
+  gap: 8px;
+  justify-self: end;
+  pointer-events: auto;
+}
+
+.survivor-status-card,
+.cooldown-chip {
   border: 1px solid var(--line);
   background: var(--panel);
   backdrop-filter: blur(14px);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
 }
 
-.stat {
-  min-width: 78px;
-  min-height: 58px;
-  padding: 10px 12px;
+.survivor-status-card {
+  position: relative;
+  width: 86px;
+  min-height: 126px;
+  padding: 8px 8px 26px;
   border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
 }
 
-.stat span,
-.progress-panel span {
-  display: block;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.2;
+.survivor-status-card.is-selected,
+.survivor-status-card.is-targeted {
+  border-color: rgba(185, 112, 255, 0.86);
+  box-shadow: 0 0 0 1px rgba(185, 112, 255, 0.28), 0 0 26px rgba(185, 112, 255, 0.28);
 }
 
-.stat strong,
-.progress-panel strong {
+.survivor-status-card.is-targeted::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: 8px;
+  width: 22px;
+  height: 30px;
+  border-radius: 50% 50% 45% 45%;
+  background:
+    radial-gradient(circle at 50% 62%, rgba(215, 239, 255, 0.95) 0 22%, transparent 24%),
+    radial-gradient(circle at 50% 54%, rgba(93, 178, 255, 0.96) 0 48%, rgba(93, 178, 255, 0) 70%);
+  filter: drop-shadow(0 0 12px rgba(93, 178, 255, 0.85));
+  transform-origin: 50% 80%;
+  animation: soul-flame-flicker 0.74s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes soul-flame-flicker {
+  from {
+    transform: translateY(0) scale(0.92) rotate(-3deg);
+    opacity: 0.82;
+  }
+  to {
+    transform: translateY(-3px) scale(1.08) rotate(4deg);
+    opacity: 1;
+  }
+}
+
+.survivor-figure {
+  position: relative;
+  height: 60px;
+  margin: 0 auto 5px;
+}
+
+.survivor-figure span {
+  position: absolute;
+  left: 50%;
   display: block;
-  margin-top: 5px;
-  font-size: 17px;
+  background: #dfe8dd;
+  transform: translateX(-50%);
+}
+
+.figure-head {
+  top: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+}
+
+.figure-body {
+  top: 22px;
+  width: 20px;
+  height: 26px;
+  border-radius: 8px 8px 5px 5px;
+}
+
+.figure-arm {
+  top: 25px;
+  width: 7px;
+  height: 24px;
+  border-radius: 999px;
+  transform-origin: top center;
+}
+
+.figure-arm.left {
+  margin-left: -17px;
+  transform: translateX(-50%) rotate(16deg);
+}
+
+.figure-arm.right {
+  margin-left: 17px;
+  transform: translateX(-50%) rotate(-16deg);
+}
+
+.figure-leg {
+  top: 45px;
+  width: 8px;
+  height: 18px;
+  border-radius: 999px;
+  transform-origin: top center;
+}
+
+.figure-leg.left {
+  margin-left: -7px;
+  transform: translateX(-50%) rotate(7deg);
+}
+
+.figure-leg.right {
+  margin-left: 7px;
+  transform: translateX(-50%) rotate(-7deg);
+}
+
+.figure-chair {
+  display: none !important;
+}
+
+.state-injured .survivor-figure span {
+  background: #d9b76a;
+}
+
+.state-downed .survivor-figure {
+  transform: rotate(90deg) translate(6px, -4px);
+}
+
+.state-downed .survivor-figure span,
+.state-carried .survivor-figure span,
+.state-seated .survivor-figure span {
+  background: #c97970;
+}
+
+.state-carried .survivor-figure {
+  transform: translateY(-8px) rotate(-12deg);
+}
+
+.state-carried .figure-arm.left,
+.state-carried .figure-arm.right {
+  top: 18px;
+  height: 25px;
+}
+
+.state-seated .survivor-figure {
+  height: 60px;
+}
+
+.state-seated .figure-chair {
+  display: block !important;
+  top: 35px;
+  width: 42px;
+  height: 22px;
+  border: 2px solid #b95f52;
+  border-top: 0;
+  border-radius: 0 0 5px 5px;
+  background: transparent;
+}
+
+.state-seated .figure-leg {
+  top: 45px;
+  height: 12px;
+  transform: translateX(-50%) rotate(82deg);
+}
+
+.state-seated .figure-leg.right {
+  transform: translateX(-50%) rotate(-82deg);
+}
+
+.state-escaped,
+.state-eliminated {
+  opacity: 0.48;
+}
+
+.survivor-meta {
+  display: grid;
+  gap: 2px;
+  text-align: center;
+}
+
+.survivor-meta strong,
+.cooldown-chip strong {
+  color: var(--ink);
+  font-size: 13px;
   line-height: 1.1;
-  letter-spacing: 0;
+}
+
+.survivor-meta span,
+.cooldown-chip span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.negative-effects {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: flex;
+  max-width: calc(100% - 12px);
+  gap: 3px;
+  justify-content: flex-end;
+}
+
+.negative-effects span {
+  max-width: 54px;
+  padding: 2px 4px;
+  border-radius: 5px;
+  background: rgba(83, 51, 118, 0.88);
+  color: #f0e8ff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.negative-effects em {
+  width: 18px;
+  height: 14px;
+  border: 1px solid rgba(238, 243, 237, 0.12);
+  border-radius: 5px;
+  background: rgba(238, 243, 237, 0.04);
 }
 
 .hud-bottom {
-  left: clamp(14px, 2.5vw, 32px);
   right: clamp(14px, 2.5vw, 32px);
   bottom: clamp(14px, 2.5vw, 28px);
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: end;
-  gap: 14px;
+  pointer-events: none;
 }
 
-.mini-map {
-  width: 176px;
-  height: 128px;
-  border-radius: 8px;
-  padding: 8px;
-}
-
-#miniMapCanvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.progress-panel {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(86px, 1fr));
+.cooldown-panel {
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
-  width: min(640px, calc(100vw - 220px));
-  padding: 12px;
+  justify-content: flex-end;
+  width: min(620px, calc(100vw - 32px));
+}
+
+.cooldown-chip {
+  min-width: 78px;
+  min-height: 48px;
+  padding: 9px 11px;
   border-radius: 8px;
 }
 
-.progress-panel > div {
-  min-height: 48px;
+.cooldown-chip.is-ready {
+  border-color: rgba(183, 214, 193, 0.4);
+}
+
+.cooldown-chip.is-cooling {
+  border-color: rgba(185, 112, 255, 0.36);
+  background: rgba(35, 24, 47, 0.82);
 }
 
 .touch-stick {
@@ -559,19 +771,12 @@ h1 {
   }
 
   .hud-bottom {
-    left: clamp(20px, 3vw, 44px);
     right: clamp(20px, 3vw, 44px);
-    bottom: max(18px, env(safe-area-inset-bottom));
+    bottom: max(286px, calc(env(safe-area-inset-bottom) + 268px));
   }
 
-  .progress-panel {
-    width: min(520px, 48vw);
-    grid-template-columns: repeat(2, minmax(112px, 1fr));
-  }
-
-  .mini-map {
-    width: 184px;
-    height: 132px;
+  .cooldown-panel {
+    width: min(390px, 42vw);
   }
 
   .touch-stick {
@@ -633,22 +838,39 @@ h1 {
     grid-template-columns: 1fr;
   }
 
-  .stat-grid {
+  .cipher-banner {
+    justify-self: stretch;
+    min-width: 0;
+  }
+
+  .survivor-status-grid {
     width: 100%;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .survivor-status-card {
+    width: auto;
+    min-height: 112px;
   }
 
   .hud-bottom {
-    align-items: start;
+    bottom: max(318px, calc(env(safe-area-inset-bottom) + 300px));
   }
 
-  .progress-panel {
-    display: none;
+  .cooldown-panel {
+    width: min(100%, 360px);
   }
 
-  .mini-map {
-    width: 144px;
-    height: 104px;
+  .cooldown-chip {
+    min-width: 68px;
+  }
+
+  .touch-stick {
+    display: block;
+  }
+
+  .touch-actions {
+    display: grid;
   }
 
   .touch-actions {

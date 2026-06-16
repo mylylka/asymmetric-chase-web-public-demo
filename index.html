@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Demo_12_UIRefresh</title>
-    <link rel="stylesheet" href="./css/styles.css?v=assist-skills-v1-20260614">
+    <link rel="stylesheet" href="./css/styles.css?v=perfumer-20260616">
   </head>
   <body>
     <main class="shell">
@@ -55,6 +55,10 @@
                   <span>学徒 · 辅助位</span>
                   <strong>Q 放针线包，受伤队友拾取后延迟回血</strong>
                 </button>
+                <button type="button" class="character-button survivor" data-character-role="survivor" data-character="perfumer">
+                  <span>调香师 · 牵制位</span>
+                  <strong>嗅感预警，Q 释放迷香；四次后点燃幻香大阵</strong>
+                </button>
                 <button type="button" class="character-button hunter" data-character-role="hunter" data-character="standard">
                   <span>标准追捕者</span>
                   <strong>均衡移速、攻击和后摇</strong>
@@ -70,6 +74,10 @@
                 <button type="button" class="character-button hunter" data-character-role="hunter" data-character="sawbone">
                   <span>锯骨</span>
                   <strong>普攻叠流血，Q 拉锯；二阶只因命中或撞墙停</strong>
+                </button>
+                <button type="button" class="character-button hunter" data-character-role="hunter" data-character="soulBinder">
+                  <span>引魂师</span>
+                  <strong>普攻叠魂印，Q 摄魂，E 借魂，F 引魂归途</strong>
                 </button>
                 <button type="button" class="character-button hunter secret is-hidden" data-character-role="hunter" data-character="twinSword" data-hidden-character="true">
                   <span>双生剑仙 · 隐藏监管者</span>
@@ -146,6 +154,10 @@
                     <span>4 · 闪现</span>
                     <strong>向前闪现，闪现前出刀延后结算</strong>
                   </button>
+                  <button type="button" class="assist-button" data-assist="shift">
+                    <span>5 · 移形</span>
+                    <strong>瞄准放置远端门，并在脚底生成近端门</strong>
+                  </button>
                 </div>
               </div>
             </div>
@@ -157,40 +169,20 @@
             <p class="eyebrow">Demo_12_UIRefresh</p>
             <h1>新UI开发原型</h1>
           </div>
-          <div class="stat-grid" aria-label="角色状态">
-            <div class="stat">
-              <span>玩家</span>
-              <strong id="speedReadout">0.0</strong>
-            </div>
-            <div class="stat">
-              <span>修理</span>
-              <strong id="staminaReadout">100%</strong>
-            </div>
-            <div class="stat">
-              <span>追击</span>
-              <strong id="collisionReadout">正常</strong>
-            </div>
+          <div class="cipher-banner" aria-label="密码机进度">
+            <strong id="cipherStatusReadout">五台密码机尚未破译</strong>
+          </div>
+          <div class="survivor-status-grid" id="survivorStatusGrid" aria-label="求生者状态">
+            <div class="survivor-status-card"></div>
+            <div class="survivor-status-card"></div>
+            <div class="survivor-status-card"></div>
+            <div class="survivor-status-card"></div>
           </div>
         </div>
 
         <div class="hud hud-bottom">
-          <div class="mini-map" aria-hidden="true">
-            <canvas id="miniMapCanvas"></canvas>
-          </div>
-          <div class="progress-panel" aria-label="地图验证">
-            <div>
-              <span>修理进度</span>
-              <strong id="repairsReadout">0/5</strong>
-            </div>
-            <div>
-              <span>出口</span>
-              <strong id="exitsReadout">未开启</strong>
-            </div>
-            <div>
-              <span>逃出/淘汰</span>
-              <strong id="escapeReadout">0/0</strong>
-            </div>
-            <div>
+          <div class="cooldown-panel" id="cooldownPanel" aria-label="技能冷却">
+            <div class="cooldown-chip">
               <span>操作</span>
               <strong id="controlsReadout">E / Space</strong>
             </div>
@@ -211,6 +203,6 @@
       </section>
     </main>
 
-    <script src="./js/main.js?v=assist-skills-v1-20260614"></script>
+    <script src="./js/main.js?v=perfumer-20260616"></script>
   </body>
 </html>

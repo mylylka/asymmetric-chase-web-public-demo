@@ -43,7 +43,8 @@
 
   const GAME_MODE = {
     normal: "normal",
-    infiniteSawbone: "infiniteSawbone"
+    infiniteSawbone: "infiniteSawbone",
+    soulBinderPractice: "soulBinderPractice"
   };
 
   const BADGE_LIMITS = {
@@ -259,18 +260,21 @@
   const PACKAGE_HIT_RADIUS = 34;
   const APPRENTICE_ID = "apprentice";
   const PERFUMER_ID = "perfumer";
-  const PERFUMER_SENSE_FAR_RANGE = 300;
-  const PERFUMER_SENSE_NEAR_RANGE = 150;
-  const PERFUME_MIST_RADIUS = 100;
+  const PERFUMER_SENSE_FAR_RANGE = 1200;
+  const PERFUMER_SENSE_NEAR_RANGE = 600;
+  const PERFUME_MIST_RADIUS = 400;
   const PERFUME_MIST_DURATION = 10000;
   const PERFUME_MIST_COOLDOWN = 20000;
   const PERFUME_HUNTER_SPEED_MULTIPLIER = 0.9;
   const PERFUME_SELF_SPEED_BOOST = 1.15;
   const PERFUME_ULTIMATE_CHARGES = 4;
-  const PERFUME_ULTIMATE_RADIUS = 150;
+  const PERFUME_ULTIMATE_RADIUS = 600;
   const PERFUME_ULTIMATE_DURATION = 20000;
   const PERFUME_ULTIMATE_SURVIVOR_SPEED_BOOST = 1.2;
   const PERFUME_ULTIMATE_ILLUSIONS = 3;
+  const PERFUME_AI_CLOSE_VISION_RANGE = 96;
+  const PERFUME_AI_WANDER_TURN_INTERVAL = 850;
+  const PERFUME_AI_BLIND_ATTACK_CHANCE = 0.42;
   const STITCH_PACK_PICKUP_RADIUS = 34;
   const STITCH_HEAL_DELAY = 15000;
   const LANTERN_KEEPER_ID = "lanternKeeper";
@@ -305,18 +309,20 @@
   const TIME_REWIND_WINDOW = 10000;
   const TIME_REWIND_STEALTH_DURATION = 3000;
   const MAGIC_SHOW_COOLDOWN = 25000;
+  const MAGIC_SHOW_AI_MIN_ACTOR_SAFE_DISTANCE = 220;
   const ACTOR_HIT_STEALTH_DURATION = 3000;
   const ACTOR_HIT_SPEED_BOOST = 1.15;
   const ACTOR_DECOY_DURATION = 7600;
-  const ACTOR_DECOY_SPEED = 210;
+  const ACTOR_DECOY_SPEED = 250;
   const SAWBONE_ID = "sawbone";
   const SOUL_BINDER_ID = "soulBinder";
   const SOUL_MARK_MAX = 3;
+  const SOUL_BINDER_PRACTICE_SOUL_MARKS = 20;
   const SOUL_MARK_REPAIR_SLOWDOWN = 1.1;
   const SOUL_MARK_HEAL_POWER_MULTIPLIER = 0.8;
   const SOUL_MARK_VAULT_SLOWDOWN = 1.1;
   const SOUL_MARK_MOVE_SLOW = 0.85;
-  const SOUL_SIPHON_DURATION = 10000;
+  const SOUL_SIPHON_DURATION = 7000;
   const SOUL_SIPHON_SPEED_BOOST = 1.2;
   const SOUL_SIPHON_FAIL_SLOW = 0.9;
   const SOUL_SIPHON_FAIL_DURATION = 3000;
@@ -515,6 +521,10 @@
     angle: Math.PI,
     status: "chasing",
     target: null,
+    blindWanderAngle: Math.PI,
+    nextBlindWanderTurnAt: 0,
+    lastKnownTargetX: null,
+    lastKnownTargetY: null,
     carrying: null,
     path: [],
     pathGoal: null,
@@ -654,6 +664,7 @@
   let assistPeeperId = 0;
   let activePatroller = null;
   let activeShiftPortals = null;
+  let assistListenTargets = [];
   let packageProjectileId = 0;
   let packageAim = null;
   let lastAimPointer = null;
@@ -677,7 +688,7 @@
     hatchOpen: "hatch-open.png"
   });
   const CHARACTER_ASSET_ROOT = `${window.location.pathname.includes("/demos/") ? "../" : "./"}assets/游戏图样/角色/optimized/`;
-  const CHARACTER_ASSET_VERSION = "q512-20260613";
+  const CHARACTER_ASSET_VERSION = "q512-20260618-perfumer";
   const CHARACTER_SPRITE_CACHE = {};
   const CHARACTER_WARMUP_QUEUE = [];
   let characterWarmupScheduled = false;
@@ -686,8 +697,10 @@
     actor: "演员Q版.png",
     messenger: "信使Q版.png",
     apprentice: "学徒Q版.png",
+    perfumer: "调香师Q版.png",
     lanternKeeper: "提灯人Q版.png",
     sawbone: "锯骨Q版.png",
+    soulBinder: "引魂师Q版.png",
     twinQingtian: "赵青天Q版.png",
     twinChiyin: "池音Q版.png"
   });
@@ -814,7 +827,6 @@
   }
 
   function getSurvivors() {
-    if (isInfiniteSawboneMode()) return [];
     return [player].concat(teammates);
   }
 
@@ -962,6 +974,14 @@
     return currentMode === GAME_MODE.infiniteSawbone;
   }
 
+  function isSoulBinderPracticeMode() {
+    return currentMode === GAME_MODE.soulBinderPractice;
+  }
+
+  function isPracticeTargetMode() {
+    return isInfiniteSawboneMode() || isSoulBinderPracticeMode();
+  }
+
   function hunterHasSkill() {
     return isLanternKeeper() || isSawbone() || isTwinSword() || isSoulBinder();
   }
@@ -1098,13 +1118,15 @@
   }
 
   function getSoulMarks(survivor) {
-    return actorClamp(survivor && survivor.soulMarks || 0, 0, SOUL_MARK_MAX);
+    const maxMarks = isSoulBinderPracticeMode() ? SOUL_BINDER_PRACTICE_SOUL_MARKS : SOUL_MARK_MAX;
+    return actorClamp(survivor && survivor.soulMarks || 0, 0, maxMarks);
   }
 
   function addSoulMark(survivor, amount = 1) {
     if (!survivor || survivor.escaped || survivor.state === "eliminated") return 0;
     const before = getSoulMarks(survivor);
-    survivor.soulMarks = Math.min(SOUL_MARK_MAX, before + amount);
+    const maxMarks = isSoulBinderPracticeMode() ? SOUL_BINDER_PRACTICE_SOUL_MARKS : SOUL_MARK_MAX;
+    survivor.soulMarks = Math.min(maxMarks, before + amount);
     return survivor.soulMarks - before;
   }
 
@@ -1129,6 +1151,18 @@
     return alignment > 0.35 ? SOUL_SIPHON_SPEED_BOOST : 1;
   }
 
+  function isSoulSiphonPhasing(now = performance.now()) {
+    return isSoulBinder() && Boolean(hunter.soulSiphonTarget) && now < (hunter.soulSiphonUntil || 0);
+  }
+
+  function isSoulSiphonPhaseMove(dx, dy, now = performance.now()) {
+    if (!isSoulSiphonPhasing(now)) return false;
+    const move = normalizeVector(dx, dy);
+    if (!move.x && !move.y) return false;
+    const toTarget = normalizeVector(hunter.soulSiphonTarget.x - hunter.x, hunter.soulSiphonTarget.y - hunter.y);
+    return move.x * toTarget.x + move.y * toTarget.y > 0.35;
+  }
+
   function getBorrowSoulMoveMultiplier(now = performance.now()) {
     return isSoulBinder() && now < (hunter.borrowSoulUntil || 0) ? 1 + (hunter.borrowSoulSpeedBonus || 0) : 1;
   }
@@ -1139,6 +1173,10 @@
 
   function isSurvivorInvisible(survivor, now = performance.now()) {
     return Boolean(survivor && now < (survivor.invisibleUntil || 0));
+  }
+
+  function isHunterInvisibleToSurvivors(now = performance.now()) {
+    return isTwinSword() && (isTwinForm(TWIN_FORM_CHIYIN) || now < (hunter.invisibleUntil || 0));
   }
 
   function shouldHideSurvivorFromHunterView(survivor, now = performance.now()) {
@@ -1600,6 +1638,13 @@
       return;
     }
     maybeInterruptAIObjectiveForRescue(survivor, now);
+    if (isHatchOpen() && (survivor.state === "healthy" || survivor.state === "injured")) {
+      if (survivor.action && survivor.action.kind === "escaping" && survivor.action.hatch) {
+        if (updateActorAction(survivor, now)) return;
+      }
+      cancelSurvivorAction(survivor);
+      if (updateAIHatchEscape(survivor, dt, now)) return;
+    }
     if (updateActorAction(survivor, now)) return;
 
     if (survivor.state === "downed") {
@@ -1696,11 +1741,24 @@
       survivor.magicShowMode = "rescue";
       return performMagicShow(survivor, now);
     }
-    if ((hunter.target === survivor && hunterDistance < 430) || hunterDistance < 220 || (hunter.carrying && hunterDistance < 360)) {
+
+    const protectedTarget = getAIActorProtectedTarget(survivor);
+    if (protectedTarget) {
       survivor.magicShowMode = "hunter";
       return performMagicShow(survivor, now);
     }
     return false;
+  }
+
+  function getAIActorProtectedTarget(actor) {
+    if (hunter.carrying) return null;
+    if (getSurvivors().some((survivor) => survivor.state === "seated")) return null;
+    const target = hunter.target;
+    if (!target || target === actor || isActorDecoyTarget(target)) return null;
+    if (target.escaped || target.state !== "healthy" && target.state !== "injured") return null;
+    if (distanceBetween(hunter, target) > 430) return null;
+    if (distanceBetween(hunter, actor) < MAGIC_SHOW_AI_MIN_ACTOR_SAFE_DISTANCE) return null;
+    return target;
   }
 
   function maybeUseAIPerfumerSkill(survivor, hunterDistance, now) {
@@ -1797,6 +1855,11 @@
   }
 
   function updateAIObjective(survivor, dt, now, hunterDistance) {
+    if (isPracticeTargetMode()) {
+      survivor.objectiveDecision = null;
+      return false;
+    }
+
     if (isHatchOpen()) {
       return updateAIHatchEscape(survivor, dt, now);
     }
@@ -2392,7 +2455,16 @@
     return moveActorSmart(actor, dx, dy);
   }
 
+  function moveActorPhasing(actor, dx, dy) {
+    const beforeX = actor.x;
+    const beforeY = actor.y;
+    actor.x = actorClamp(actor.x + dx, 70, world.width - 70);
+    actor.y = actorClamp(actor.y + dy, 70, world.height - 70);
+    return Math.hypot(actor.x - beforeX, actor.y - beforeY);
+  }
+
   function moveActorSmart(actor, dx, dy) {
+    if (actor === hunter && isSoulSiphonPhaseMove(dx, dy)) return moveActorPhasing(actor, dx, dy);
     const beforeX = actor.x;
     const beforeY = actor.y;
     const distance = Math.hypot(dx, dy);
@@ -2501,6 +2573,25 @@
       actor.vx = 0;
       actor.vy = 0;
       return 0;
+    }
+
+    if (actor === hunter && isSoulSiphonPhasing(now)) {
+      const toTarget = normalizeVector(targetX - actor.x, targetY - actor.y);
+      const step = Math.min(speed * dt, Math.max(0, directDistance - 3));
+      const dx = toTarget.x * step;
+      const dy = toTarget.y * step;
+      const beforeX = actor.x;
+      const beforeY = actor.y;
+      const moved = moveActorSmart(actor, dx, dy);
+      if (moved > 0.01) {
+        actor.angle = Math.atan2(actor.y - beforeY, actor.x - beforeX);
+        actor.vx = (actor.x - beforeX) / Math.max(dt, 0.001);
+        actor.vy = (actor.y - beforeY) / Math.max(dt, 0.001);
+      } else {
+        actor.vx = 0;
+        actor.vy = 0;
+      }
+      return moved;
     }
 
     const goal = findNearestSafePosition(targetX, targetY, actor.radius);
@@ -2716,9 +2807,15 @@
     const target = chooseHunterTarget();
     hunter.target = target;
     if (!target) {
+      if (isHunterInPerfumeMist(now)) {
+        updateAIHunterBlindInPerfume(dt, now);
+        return;
+      }
       hunter.status = "allDowned";
       return;
     }
+    hunter.lastKnownTargetX = target.x;
+    hunter.lastKnownTargetY = target.y;
 
     const toTargetX = target.x - hunter.x;
     const toTargetY = target.y - hunter.y;
@@ -2780,6 +2877,11 @@
       activePatroller = null;
       return;
     }
+    if (hunter.assistSkill === "shift" && activeShiftPortals) {
+      showAssistAlert("移形门收回", now, 1000);
+      finishAssistShift(now);
+      return;
+    }
     if (!canUseHunterAssist(now)) return;
     if (hunter.assistSkill === "listen") useAssistListen(now);
     else if (hunter.assistSkill === "peeper") useAssistPeeper(now);
@@ -2813,10 +2915,12 @@
 
   function useAssistListen(now) {
     let revealed = 0;
+    assistListenTargets = [];
     getSurvivors().forEach((survivor) => {
       if (survivor.escaped || survivor.state === "eliminated" || survivor.state === "seated") return;
       if (Math.hypot(survivor.vx || 0, survivor.vy || 0) < ASSIST_LISTEN_MOVE_THRESHOLD) return;
       survivor.listenRevealUntil = now + ASSIST_LISTEN_DURATION;
+      assistListenTargets.push({ survivor, until: now + ASSIST_LISTEN_DURATION });
       revealed += 1;
     });
     hunter.assistListenUntil = now + ASSIST_LISTEN_DURATION;
@@ -3186,7 +3290,7 @@
       if (move.length > 0.1) return Math.atan2(move.y, move.x);
       return hunter.angle;
     }
-    if (action.target && !action.target.escaped && action.target.state !== "eliminated" && !isSurvivorInvisible(action.target)) {
+    if (action.target && !action.target.escaped && action.target.state !== "eliminated" && !isSurvivorInvisible(action.target) && canAIHunterSeeThroughPerfume(action.target)) {
       return Math.atan2(action.target.y - hunter.y, action.target.x - hunter.x);
     }
     return hunter.angle;
@@ -3198,6 +3302,7 @@
     getSurvivors().forEach((survivor) => {
       if (survivor.escaped || survivor.state === "downed" || survivor.state === "seated" || survivor.state === "carried" || survivor.state === "eliminated") return;
       if (isSurvivorInvisible(survivor)) return;
+      if (!canAIHunterSeeThroughPerfume(survivor)) return;
       const distance = distanceBetween(hunter, survivor);
       if (distance > hunter.radius + survivor.radius + 18) return;
       const targetAngle = Math.atan2(survivor.y - hunter.y, survivor.x - hunter.x);
@@ -3279,6 +3384,7 @@
       if (survivor.escaped) return;
       if (survivor.state === "downed" || survivor.state === "seated" || survivor.state === "carried" || survivor.state === "eliminated") return;
       if (isSurvivorInvisible(survivor)) return;
+      if (!canAIHunterSeeThroughPerfume(survivor)) return;
       if (!isSurvivorInHunterAttackCone(survivor)) return;
       const distance = distanceBetween(hunter, survivor);
       if (distance < bestDistance) {
@@ -3301,6 +3407,7 @@
       if (survivor.escaped) return;
       if (survivor.state === "downed" || survivor.state === "seated" || survivor.state === "carried" || survivor.state === "eliminated") return;
       if (isSurvivorInvisible(survivor)) return;
+      if (!canAIHunterSeeThroughPerfume(survivor)) return;
       const distance = distanceBetween(hunter, survivor);
       const healthPriority = getTargetHealthPriority(survivor);
       const chaseDifficulty = getTargetChaseDifficulty(survivor);
@@ -3414,6 +3521,35 @@
 
     hunter.path = [];
     if (dt > 0) hunter.status = "chasing";
+  }
+
+  function updateAIHunterBlindInPerfume(dt, now) {
+    hunter.status = "blinded";
+    const attackTarget = findHunterAttackTarget();
+    if (attackTarget && canHunterAttack(now) && Math.random() < PERFUME_AI_BLIND_ATTACK_CHANCE) {
+      performHunterAttack(now);
+      return;
+    }
+
+    if (now >= (hunter.nextBlindWanderTurnAt || 0)) {
+      let baseAngle = Number.isFinite(hunter.blindWanderAngle) ? hunter.blindWanderAngle : hunter.angle;
+      if (Number.isFinite(hunter.lastKnownTargetX) && Number.isFinite(hunter.lastKnownTargetY)) {
+        baseAngle = Math.atan2(hunter.lastKnownTargetY - hunter.y, hunter.lastKnownTargetX - hunter.x);
+      }
+      hunter.blindWanderAngle = baseAngle + (Math.random() - 0.5) * Math.PI * 0.9;
+      hunter.nextBlindWanderTurnAt = now + PERFUME_AI_WANDER_TURN_INTERVAL + Math.random() * 650;
+    }
+
+    hunter.angle = turnToward(hunter.angle, hunter.blindWanderAngle || hunter.angle, hunter.turnSpeed * dt * 0.72);
+    const moved = moveActorSmart(
+      hunter,
+      Math.cos(hunter.angle) * getHunterMoveSpeed() * dt * 0.82,
+      Math.sin(hunter.angle) * getHunterMoveSpeed() * dt * 0.82
+    );
+    if (moved < 0.5 && now > (hunter.nextBlindWanderTurnAt || 0) - 220) {
+      hunter.blindWanderAngle = hunter.angle + Math.PI * (0.55 + Math.random() * 0.9);
+      hunter.nextBlindWanderTurnAt = now + 420;
+    }
   }
 
   function updateAIHunterChairing(dt, now) {
@@ -3568,20 +3704,22 @@
       !hunter.carrying &&
       now >= hunter.stunnedUntil &&
       now >= hunter.wipeUntil &&
-      now >= (hunter.nextBorrowSoulAt || 0) &&
+      (isSoulBinderPracticeMode() || now >= (hunter.nextBorrowSoulAt || 0)) &&
       getTotalSoulMarks() > 0;
   }
 
   function borrowSoul(now) {
     if (!canBorrowSoul(now)) return false;
     const total = getTotalSoulMarks();
-    getSurvivors().forEach((survivor) => {
-      survivor.soulMarks = 0;
-    });
+    if (!isSoulBinderPracticeMode()) {
+      getSurvivors().forEach((survivor) => {
+        survivor.soulMarks = 0;
+      });
+    }
     hunter.borrowSoulSpeedBonus = total * BORROW_SOUL_SPEED_PER_MARK;
     hunter.borrowSoulRecoveryBonus = total * BORROW_SOUL_RECOVERY_PER_MARK;
     hunter.borrowSoulUntil = now + BORROW_SOUL_DURATION;
-    hunter.nextBorrowSoulAt = now + BORROW_SOUL_COOLDOWN;
+    hunter.nextBorrowSoulAt = isSoulBinderPracticeMode() ? now : now + BORROW_SOUL_COOLDOWN;
     showAssistAlert(`借魂 ${total}层`, now, 1200);
     return true;
   }
@@ -3644,23 +3782,42 @@
 
   function createActorDecoy(actor, now) {
     const angle = Number.isFinite(actor.angle) ? actor.angle : 0;
-    actorDecoys.push({
-      id: ++actorDecoyId,
-      kind: "actorDecoy",
-      name: actor.name,
-      owner: actor,
-      x: actor.x,
-      y: actor.y,
+    actorDecoys.push(createSmartDecoy(actor, actor.x, actor.y, angle, {
       state: actor.state === "healthy" ? "healthy" : "injured",
       damageProgress: actor.damageProgress || 0,
-      radius: actor.radius,
-      angle,
-      vx: Math.cos(angle) * ACTOR_DECOY_SPEED,
-      vy: Math.sin(angle) * ACTOR_DECOY_SPEED,
-      fill: actor.fill,
-      core: actor.core,
+      speed: ACTOR_DECOY_SPEED,
       until: now + ACTOR_DECOY_DURATION
-    });
+    }));
+  }
+
+  function createSmartDecoy(owner, x, y, angle, options = {}) {
+    return {
+      id: ++actorDecoyId,
+      kind: "actorDecoy",
+      name: owner.name,
+      owner,
+      x,
+      y,
+      state: options.state || "healthy",
+      damageProgress: options.damageProgress || 0,
+      radius: owner.radius,
+      angle,
+      speed: options.speed || owner.speed || player.speed,
+      sprintSpeed: options.sprintSpeed || owner.sprintSpeed || player.sprintSpeed,
+      vx: Math.cos(angle) * (options.speed || ACTOR_DECOY_SPEED),
+      vy: Math.sin(angle) * (options.speed || ACTOR_DECOY_SPEED),
+      fill: owner.fill,
+      core: owner.core,
+      boostUntil: 0,
+      action: null,
+      nextInteractAt: 0,
+      wanderTarget: null,
+      kiteDecision: null,
+      path: [],
+      pathGoal: null,
+      repathAt: 0,
+      until: options.until || performance.now() + ACTOR_DECOY_DURATION
+    };
   }
 
   function applySurvivorDamage(survivor, now, amount) {
@@ -3741,6 +3898,7 @@
     twinAim = null;
     activePatroller = null;
     activeShiftPortals = null;
+    assistListenTargets = [];
     nextSoulLampAt = 0;
     lanternAlert = null;
 
@@ -3782,6 +3940,10 @@
     hunter.soulSelectionCandidate = null;
     hunter.soulSelectionCount = 0;
     hunter.soulSelectionAt = 0;
+    hunter.blindWanderAngle = hunter.angle;
+    hunter.nextBlindWanderTurnAt = 0;
+    hunter.lastKnownTargetX = null;
+    hunter.lastKnownTargetY = null;
     hunter.nextSawDashAt = 0;
     hunter.sawAttackLockedUntil = 0;
     hunter.shortSawAvailableUntil = 0;
@@ -3810,18 +3972,33 @@
   }
 
   function applyModeAfterReset() {
-    if (!isInfiniteSawboneMode()) return;
-    hunter.presenceHits = PRESENCE_TIER_TWO_HITS;
-    hunter.presenceTier = 2;
-    hunter.nextSawDashAt = 0;
-    hunter.shortSawAvailableUntil = 0;
-    hunter.pendingSawWipe = false;
-    hunter.pendingSawWipeAt = 0;
-    hunter.status = "controlled";
-    lanternAlert = {
-      text: "娱乐模式 · 无限车",
-      until: performance.now() + 1800
-    };
+    if (isInfiniteSawboneMode()) {
+      hunter.presenceHits = PRESENCE_TIER_TWO_HITS;
+      hunter.presenceTier = 2;
+      hunter.nextSawDashAt = 0;
+      hunter.shortSawAvailableUntil = 0;
+      hunter.pendingSawWipe = false;
+      hunter.pendingSawWipeAt = 0;
+      hunter.status = "controlled";
+      lanternAlert = {
+        text: "娱乐模式 · 无限车移动靶",
+        until: performance.now() + 1800
+      };
+      return;
+    }
+
+    if (isSoulBinderPracticeMode()) {
+      hunter.presenceHits = PRESENCE_TIER_TWO_HITS;
+      hunter.presenceTier = 2;
+      hunter.nextBorrowSoulAt = 0;
+      getSurvivors().forEach((survivor) => {
+        if (!survivor.escaped && survivor.state !== "eliminated") survivor.soulMarks = SOUL_BINDER_PRACTICE_SOUL_MARKS;
+      });
+      lanternAlert = {
+        text: "娱乐模式 · 20魂印无限借魂",
+        until: performance.now() + 1800
+      };
+    }
   }
 
   function showCharacterSelection(role) {
@@ -3946,10 +4123,22 @@
   function startInfiniteSawboneMode() {
     currentMode = GAME_MODE.infiniteSawbone;
     selectedRole = PLAYER_ROLE.hunter;
-    hunter.badges = [];
-    hunter.assistSkill = null;
     selectedHunterCharacter = SAWBONE_ID;
-    applyHunterCharacter(SAWBONE_ID);
+    selectedHunterBadges = [];
+    selectedHunterAssist = null;
+    assignCharactersForMatch();
+    resetMatch();
+    matchStarted = true;
+    setRoleOverlayVisible(false);
+  }
+
+  function startSoulBinderPracticeMode() {
+    currentMode = GAME_MODE.soulBinderPractice;
+    selectedRole = PLAYER_ROLE.hunter;
+    selectedHunterCharacter = SOUL_BINDER_ID;
+    selectedHunterBadges = [];
+    selectedHunterAssist = null;
+    assignCharactersForMatch();
     resetMatch();
     matchStarted = true;
     setRoleOverlayVisible(false);
@@ -3958,6 +4147,7 @@
   function restartCurrentMatch() {
     if (!selectedRole) return;
     if (isInfiniteSawboneMode()) applyHunterCharacter(SAWBONE_ID);
+    else if (isSoulBinderPracticeMode()) applyHunterCharacter(SOUL_BINDER_ID);
     else assignCharactersForMatch();
     resetMatch();
     matchStarted = true;
@@ -4436,8 +4626,19 @@
     });
   }
 
+  function getActivePerfumeMistForActor(actor, now = performance.now()) {
+    return perfumeMists.find((mist) => now < mist.until && distanceBetween(actor, mist) <= mist.radius) || null;
+  }
+
   function isHunterInPerfumeMist(now = performance.now()) {
-    return isInPerfumeMist(hunter, "mist", now);
+    return isInPerfumeMist(hunter, null, now);
+  }
+
+  function canAIHunterSeeThroughPerfume(target, now = performance.now()) {
+    if (selectedRole === PLAYER_ROLE.hunter) return true;
+    if (!getActivePerfumeMistForActor(hunter, now)) return true;
+    if (distanceBetween(hunter, target) <= PERFUME_AI_CLOSE_VISION_RANGE) return true;
+    return false;
   }
 
   function isInPerfumeUltimateMist(actor, now = performance.now()) {
@@ -4728,23 +4929,11 @@
     for (let index = 0; index < PERFUME_ULTIMATE_ILLUSIONS; index += 1) {
       const angle = -Math.PI / 2 + index * (Math.PI * 2 / PERFUME_ULTIMATE_ILLUSIONS);
       const distance = mist.radius * 0.55;
-      actorDecoys.push({
-        id: ++actorDecoyId,
-        kind: "actorDecoy",
-        name: actor.name,
-        owner: actor,
-        x: mist.x + Math.cos(angle) * distance,
-        y: mist.y + Math.sin(angle) * distance,
+      actorDecoys.push(createSmartDecoy(actor, mist.x + Math.cos(angle) * distance, mist.y + Math.sin(angle) * distance, angle, {
         state: "healthy",
-        damageProgress: 0,
-        radius: actor.radius,
-        angle,
-        vx: Math.cos(angle + Math.PI / 2) * 72,
-        vy: Math.sin(angle + Math.PI / 2) * 72,
-        fill: actor.fill,
-        core: actor.core,
+        speed: actor.speed * 0.94,
         until: now + PERFUME_ULTIMATE_DURATION
-      });
+      }));
     }
   }
 
@@ -5375,6 +5564,7 @@
   }
 
   function startRepair(actor, point, now) {
+    if (isPracticeTargetMode() && actor.kind === "ai") return;
     if (actor.action || actor.state === "downed" || actor.escaped || point.completed || isRepairingPoint(actor, point)) return;
     const baseDuration = actor === player && selectedRole === PLAYER_ROLE.survivor
       ? PLAYER_REPAIR_DURATION
@@ -6400,9 +6590,11 @@
     drawTwinSwordProjectiles();
     drawPackageProjectiles();
     drawPerfumerSenseAuras();
+    drawAssistListenDirectionArrows();
     drawHunter();
     drawTeammates();
     drawPlayer();
+    drawPerfumeMistOcclusion();
     drawHeartbeatIndicators();
 
     ctx.restore();
@@ -6449,16 +6641,18 @@
       ctx.scale(pulse, pulse);
       const gradient = ctx.createRadialGradient(0, 0, mist.radius * 0.18, 0, 0, mist.radius);
       if (mist.kind === "ultimate") {
-        gradient.addColorStop(0, `rgba(98, 188, 255, ${0.26 * progress})`);
-        gradient.addColorStop(0.72, `rgba(75, 146, 228, ${0.18 * progress})`);
-        gradient.addColorStop(1, "rgba(75, 146, 228, 0)");
+        gradient.addColorStop(0, `rgba(245, 252, 255, ${0.72 * progress})`);
+        gradient.addColorStop(0.48, `rgba(226, 244, 255, ${0.58 * progress})`);
+        gradient.addColorStop(0.88, `rgba(168, 220, 255, ${0.28 * progress})`);
+        gradient.addColorStop(1, "rgba(168, 220, 255, 0)");
         ctx.strokeStyle = `rgba(156, 220, 255, ${0.55 * progress})`;
         ctx.lineWidth = 4;
       } else {
-        gradient.addColorStop(0, `rgba(190, 235, 255, ${0.24 * progress})`);
-        gradient.addColorStop(0.78, `rgba(117, 198, 255, ${0.15 * progress})`);
-        gradient.addColorStop(1, "rgba(117, 198, 255, 0)");
-        ctx.strokeStyle = `rgba(190, 235, 255, ${0.42 * progress})`;
+        gradient.addColorStop(0, `rgba(250, 253, 255, ${0.76 * progress})`);
+        gradient.addColorStop(0.5, `rgba(238, 248, 255, ${0.62 * progress})`);
+        gradient.addColorStop(0.88, `rgba(206, 235, 255, ${0.28 * progress})`);
+        gradient.addColorStop(1, "rgba(206, 235, 255, 0)");
+        ctx.strokeStyle = `rgba(240, 250, 255, ${0.7 * progress})`;
         ctx.lineWidth = 2.5;
       }
       ctx.fillStyle = gradient;
@@ -6469,6 +6663,16 @@
       ctx.beginPath();
       ctx.arc(0, 0, mist.radius, 0, Math.PI * 2);
       ctx.stroke();
+      for (let puff = 0; puff < 10; puff += 1) {
+        const puffAngle = now / 900 + mist.id + puff * 2.17;
+        const puffRadius = mist.radius * (0.18 + (puff % 5) * 0.14);
+        const x = Math.cos(puffAngle) * puffRadius;
+        const y = Math.sin(puffAngle * 0.8) * puffRadius;
+        ctx.fillStyle = `rgba(255, 255, 255, ${(mist.kind === "ultimate" ? 0.18 : 0.22) * progress})`;
+        ctx.beginPath();
+        ctx.arc(x, y, mist.radius * (mist.kind === "ultimate" ? 0.18 : 0.16), 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
     });
   }
@@ -6496,15 +6700,55 @@
     });
   }
 
+  function drawPerfumeMistOcclusion() {
+    const now = performance.now();
+    perfumeMists.forEach((mist) => {
+      if (now >= mist.until) return;
+      const duration = mist.kind === "ultimate" ? PERFUME_ULTIMATE_DURATION : PERFUME_MIST_DURATION;
+      const progress = Math.max(0, Math.min(1, (mist.until - now) / duration));
+      const fadeIn = Math.min(1, (duration - (mist.until - now)) / 900);
+      const alpha = progress * fadeIn;
+      const pulse = 1 + Math.sin(now / 280 + mist.id) * 0.025;
+      ctx.save();
+      ctx.translate(mist.x, mist.y);
+      ctx.scale(pulse, pulse);
+
+      const gradient = ctx.createRadialGradient(0, 0, mist.radius * 0.06, 0, 0, mist.radius);
+      gradient.addColorStop(0, `rgba(255, 255, 255, ${0.82 * alpha})`);
+      gradient.addColorStop(0.42, `rgba(250, 253, 255, ${0.72 * alpha})`);
+      gradient.addColorStop(0.74, `rgba(238, 248, 255, ${0.48 * alpha})`);
+      gradient.addColorStop(1, "rgba(238, 248, 255, 0)");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, mist.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (let puff = 0; puff < 14; puff += 1) {
+        const puffAngle = now / 760 + mist.id * 0.7 + puff * 1.73;
+        const puffRadius = mist.radius * (0.12 + (puff % 7) * 0.11);
+        const x = Math.cos(puffAngle) * puffRadius;
+        const y = Math.sin(puffAngle * 0.86) * puffRadius;
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.36 * alpha})`;
+        ctx.beginPath();
+        ctx.arc(x, y, mist.radius * (mist.kind === "ultimate" ? 0.2 : 0.18), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    });
+  }
+
   function drawPerfumeVisionOverlay() {
     if (selectedRole !== PLAYER_ROLE.hunter || !isHunterInPerfumeMist(performance.now())) return;
-    const inner = Math.min(width, height) * 0.22;
-    const outer = Math.max(width, height) * 0.48;
+    const inner = Math.min(width, height) * 0.2;
+    const outer = Math.max(width, height) * 0.43;
     const gradient = ctx.createRadialGradient(width / 2, height / 2, inner, width / 2, height / 2, outer);
     gradient.addColorStop(0, "rgba(5, 9, 16, 0)");
-    gradient.addColorStop(0.68, "rgba(5, 9, 16, 0.56)");
-    gradient.addColorStop(1, "rgba(5, 9, 16, 0.86)");
+    gradient.addColorStop(0.42, "rgba(0, 0, 0, 0)");
+    gradient.addColorStop(0.58, "rgba(0, 0, 0, 0.96)");
+    gradient.addColorStop(1, "rgba(0, 0, 0, 1)");
     ctx.save();
+    ctx.fillStyle = "rgba(250, 253, 255, 0.82)";
+    ctx.fillRect(0, 0, width, height);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
@@ -6813,6 +7057,40 @@
     ctx.fill();
     ctx.stroke();
     ctx.restore();
+  }
+
+  function drawAssistListenDirectionArrows() {
+    if (selectedRole !== PLAYER_ROLE.hunter || !assistListenTargets.length) return;
+    const now = performance.now();
+    assistListenTargets = assistListenTargets.filter((item) => {
+      return item &&
+        item.survivor &&
+        now < item.until &&
+        !item.survivor.escaped &&
+        item.survivor.state !== "eliminated";
+    });
+    assistListenTargets.forEach((item, index) => {
+      const target = item.survivor;
+      const angle = Math.atan2(target.y - hunter.y, target.x - hunter.x);
+      const alpha = Math.max(0.25, Math.min(1, (item.until - now) / ASSIST_LISTEN_DURATION));
+      const distance = 38 + index * 10;
+      ctx.save();
+      ctx.translate(hunter.x + Math.cos(angle) * distance, hunter.y + Math.sin(angle) * distance);
+      ctx.rotate(angle);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = "rgba(215, 239, 255, 0.94)";
+      ctx.strokeStyle = "rgba(37, 113, 208, 0.95)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(22, 0);
+      ctx.lineTo(-10, -13);
+      ctx.lineTo(-4, 0);
+      ctx.lineTo(-10, 13);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
   }
 
   function drawBlinkAim() {
@@ -7619,7 +7897,6 @@
   }
 
   function drawPlayer() {
-    if (isInfiniteSawboneMode()) return;
     if (player.escaped || player.state === "eliminated") return;
     const now = performance.now();
     if (shouldHideSurvivorFromHunterView(player, now)) return;
@@ -7838,6 +8115,7 @@
 
   function drawHunter() {
     const now = performance.now();
+    if (selectedRole === PLAYER_ROLE.survivor && isHunterInvisibleToSurvivors(now)) return;
     const character = getHunterCharacter();
 
     ctx.save();
@@ -8035,6 +8313,7 @@
   }
 
   function drawHunterAttackCone(now) {
+    if (selectedRole === PLAYER_ROLE.survivor && isHunterInvisibleToSurvivors(now)) return;
     if (isTwinForm(TWIN_FORM_CHIYIN)) return;
     if (isTwinSword() && now < (hunter.invisibleUntil || 0)) return;
     const halfArc = hunter.attackArc / 2;
@@ -8070,6 +8349,7 @@
   }
 
   function isSurvivorInHeartbeat(survivor) {
+    if (selectedRole === PLAYER_ROLE.survivor && isHunterInvisibleToSurvivors()) return false;
     return Boolean(
       survivor &&
       !survivor.escaped &&
@@ -8105,7 +8385,7 @@
   }
 
   function hasHunterTinnitus() {
-    if (isInfiniteSawboneMode() || selectedRole !== PLAYER_ROLE.hunter) return false;
+    if (selectedRole !== PLAYER_ROLE.hunter) return false;
     return getSurvivors().some(isSurvivorInHeartbeat);
   }
 
@@ -8236,10 +8516,12 @@
       miniCtx.fillStyle = performance.now() < lamp.detectingUntil ? "#d7efff" : "#5db2ff";
       miniCtx.fillRect(lamp.x - 13, lamp.y - 11, 26, 22);
     });
-    miniCtx.fillStyle = getHunterCharacter().fill || "#b95f52";
-    miniCtx.beginPath();
-    miniCtx.arc(hunter.x, hunter.y, 38, 0, Math.PI * 2);
-    miniCtx.fill();
+    if (!(selectedRole === PLAYER_ROLE.survivor && isHunterInvisibleToSurvivors())) {
+      miniCtx.fillStyle = getHunterCharacter().fill || "#b95f52";
+      miniCtx.beginPath();
+      miniCtx.arc(hunter.x, hunter.y, 38, 0, Math.PI * 2);
+      miniCtx.fill();
+    }
     if (!isInfiniteSawboneMode()) {
       teammates.forEach((survivor) => {
         if (survivor.escaped || survivor.state === "eliminated") return;
@@ -8269,7 +8551,11 @@
   function updateCipherStatusReadout() {
     if (!cipherStatusReadout) return;
     if (isInfiniteSawboneMode()) {
-      cipherStatusReadout.textContent = "娱乐模式无密码机目标";
+      cipherStatusReadout.textContent = "娱乐模式：无限车移动靶练习";
+      return;
+    }
+    if (isSoulBinderPracticeMode()) {
+      cipherStatusReadout.textContent = "娱乐模式：20魂印无限借魂移动靶";
       return;
     }
     const completed = Math.min(REPAIR_REQUIRED, getCompletedRepairCount());
@@ -8289,7 +8575,7 @@
 
   function updateSurvivorStatusGrid() {
     if (!survivorStatusGrid) return;
-    const survivors = isInfiniteSawboneMode() ? [] : getSurvivors().slice(0, 4);
+    const survivors = getSurvivors().slice(0, 4);
     const nextHtml = survivors.map((survivor, index) => renderSurvivorStatusCard(survivor, index)).join("");
     if (nextHtml === survivorStatusHtml) return;
     survivorStatusHtml = nextHtml;
@@ -8838,8 +9124,24 @@
         actorDecoys.splice(index, 1);
         continue;
       }
-      moveActorSmart(decoy, decoy.vx * dt, decoy.vy * dt);
-      if (Math.hypot(decoy.vx, decoy.vy) > 0.01) decoy.angle = Math.atan2(decoy.vy, decoy.vx);
+      updateSmartDecoy(decoy, dt, now);
+    }
+  }
+
+  function updateSmartDecoy(decoy, dt, now) {
+    const hunterDistance = distanceBetween(decoy, hunter);
+    if (decoy.action) {
+      updateActorAction(decoy, now);
+      return;
+    }
+    handleAIInteraction(decoy, now, hunterDistance);
+    const destination = getKiteEscapeDestination(decoy, hunterDistance, now);
+    const speed = (decoy.speed || ACTOR_DECOY_SPEED) * (hunterDistance < 310 ? 1.08 : 0.96);
+    const moved = moveActorToPoint(decoy, destination.x, destination.y, speed, dt, now);
+    if (moved < 0.5 && now > decoy.repathAt - 120) {
+      decoy.path = [];
+      decoy.kiteDecision = null;
+      decoy.wanderTarget = pickWanderTarget();
     }
   }
 
@@ -9062,7 +9364,8 @@
       if ((hunter.presenceTier || 0) >= 1) return `双生剑仙${badgeText} · ${form} · 一阶 · 剑${intent} · 飞${swords}${enlightened}${detentionText}`;
       return `双生剑仙${badgeText} · ${form} · 剑${intent} · 飞${swords}${enlightened}${detentionText}`;
     }
-    if (isInfiniteSawboneMode()) return "娱乐模式 · 锯骨 · 二阶无限车";
+    if (isInfiniteSawboneMode()) return "娱乐模式 · 锯骨 · 二阶无限车 · 移动靶";
+    if (isSoulBinderPracticeMode()) return "娱乐模式 · 引魂师 · 20魂印无限借魂";
     const badgeText = getBadgeReadout(PLAYER_ROLE.hunter, hunter.badges);
     const detentionText = isDetentionActive() ? " · 一刀斩" : "";
     const hits = hunter.presenceHits || 0;
@@ -9277,6 +9580,7 @@
   modeButtons.forEach((button) => {
     button.addEventListener("click", () => {
       if (button.dataset.mode === GAME_MODE.infiniteSawbone) startInfiniteSawboneMode();
+      if (button.dataset.mode === GAME_MODE.soulBinderPractice) startSoulBinderPracticeMode();
     });
   });
   characterButtons.forEach((button) => {

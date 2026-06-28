@@ -97,7 +97,8 @@ canvas {
 .character-panel.is-hidden,
 .hidden-unlock.is-hidden,
 .badge-panel.is-hidden,
-.assist-panel.is-hidden {
+.assist-panel.is-hidden,
+.hunter-survivor-preview.is-hidden {
   display: none;
 }
 
@@ -123,9 +124,27 @@ canvas {
 }
 
 .role-button.fun-mode {
-  grid-column: 1 / -1;
-  min-height: 88px;
+  min-height: 86px;
   background: rgba(185, 95, 82, 0.12);
+}
+
+.fun-mode-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.fun-mode-title {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fun-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .hidden-unlock {
@@ -193,6 +212,19 @@ canvas {
 .character-button.secret {
   border-color: rgba(136, 216, 255, 0.46);
   background: rgba(136, 216, 255, 0.1);
+}
+
+.character-button.is-locked {
+  cursor: not-allowed;
+  opacity: 0.56;
+  border-color: rgba(238, 243, 237, 0.16);
+  background: rgba(238, 243, 237, 0.035);
+}
+
+.character-button.is-locked:hover,
+.character-button.is-locked:focus-visible {
+  border-color: rgba(238, 243, 237, 0.16);
+  background: rgba(238, 243, 237, 0.035);
 }
 
 .role-button span,
@@ -269,6 +301,27 @@ canvas {
 
 .character-button {
   min-height: 98px;
+}
+
+.hunter-survivor-preview {
+  order: 1;
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid rgba(217, 183, 106, 0.34);
+  border-radius: 8px;
+  background: rgba(217, 183, 106, 0.1);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.hunter-survivor-preview strong {
+  color: var(--accent);
+}
+
+.hunter-survivor-preview span {
+  color: var(--muted);
 }
 
 .badge-panel,
@@ -390,6 +443,27 @@ h1 {
   line-height: 1.05;
   letter-spacing: 0;
   text-shadow: 0 2px 18px rgba(0, 0, 0, 0.42);
+}
+
+.hunter-presence-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  margin-top: 10px;
+  padding: 7px 11px;
+  border: 1px solid rgba(217, 183, 106, 0.42);
+  border-radius: 8px;
+  background: rgba(18, 16, 28, 0.72);
+  color: #f6e8c8;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.2);
+}
+
+.hunter-presence-badge.is-hidden {
+  display: none;
 }
 
 .cipher-banner {
@@ -566,6 +640,19 @@ h1 {
 
 .state-seated .survivor-figure {
   height: 60px;
+}
+
+.state-seated .survivor-figure::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 6px;
+  height: 13px;
+  border: 2px solid #b95f52;
+  border-top: 0;
+  border-radius: 0 0 5px 5px;
+  background: rgba(9, 12, 14, 0.26);
 }
 
 .state-seated .figure-chair {
@@ -834,6 +921,10 @@ h1 {
 }
 
 @media (max-width: 760px) {
+  .fun-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
   .hud-top {
     grid-template-columns: 1fr;
   }

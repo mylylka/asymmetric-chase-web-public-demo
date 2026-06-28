@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Demo_12_UIRefresh</title>
-    <link rel="stylesheet" href="./css/styles.css?v=actor-ai-magicshow-20260618">
+    <link rel="stylesheet" href="./css/styles.css?v=dev-mode-url-20260627">
   </head>
   <body>
     <main class="shell">
@@ -24,14 +24,23 @@
                 <span>追捕阵营</span>
                 <strong>J 攻击 · Space 牵起/挂椅/踩板窗</strong>
               </button>
-              <button type="button" class="role-button fun-mode" data-mode="infiniteSawbone">
-                <span>娱乐模式 · 无限车的锯骨</span>
-                <strong>开局二阶 · 无限耐久拉锯 · 移动靶练习</strong>
-              </button>
-              <button type="button" class="role-button fun-mode" data-mode="soulBinderPractice">
-                <span>娱乐模式 · 无限借魂引魂师</span>
-                <strong>每人20魂印 · 借魂不消耗 · 移动靶练习</strong>
-              </button>
+              <div class="fun-mode-panel" aria-label="娱乐模式">
+                <span class="fun-mode-title">娱乐模式</span>
+                <div class="fun-mode-grid">
+                  <button type="button" class="role-button fun-mode" data-mode="kiteSimulator">
+                    <span>牵制模拟器</span>
+                    <strong>先选逃生者 · 标准追捕只追你 · 不会淘汰</strong>
+                  </button>
+                  <button type="button" class="role-button fun-mode" data-mode="infiniteSawbone">
+                    <span>无限车的锯骨</span>
+                    <strong>开局二阶 · 无限耐久拉锯 · 移动靶练习</strong>
+                  </button>
+                  <button type="button" class="role-button fun-mode" data-mode="soulBinderPractice">
+                    <span>无限借魂引魂师</span>
+                    <strong>每人20魂印 · 借魂不消耗 · 移动靶练习</strong>
+                  </button>
+                </div>
+              </div>
             </div>
             <div class="character-panel is-hidden" id="characterPanel">
               <div class="character-actions">
@@ -42,6 +51,7 @@
                 <input id="hiddenCodeInput" name="hiddenCode" type="text" inputmode="text" autocapitalize="none" spellcheck="false" placeholder="暗号">
                 <button type="submit">确认</button>
               </form>
+              <div class="hunter-survivor-preview is-hidden" id="hunterSurvivorPreview" aria-label="本局求生者身份"></div>
               <div class="character-grid">
                 <button type="button" class="character-button survivor" data-character-role="survivor" data-character="clockmaker">
                   <span>钟表匠 · 修机位</span>
@@ -59,9 +69,21 @@
                   <span>学徒 · 辅助位</span>
                   <strong>Q 放针线包，受伤队友拾取后延迟回血</strong>
                 </button>
+                <button type="button" class="character-button survivor" data-character-role="survivor" data-character="medic">
+                  <span>军医 · 救人位</span>
+                  <strong>救援更快并给护盾，Q 肾上腺素加速延伤</strong>
+                </button>
                 <button type="button" class="character-button survivor" data-character-role="survivor" data-character="perfumer">
-                  <span>调香师 · 牵制位</span>
+                  <span>调香师 · 辅助位</span>
                   <strong>嗅感预警，Q 释放迷香；四次后点燃幻香大阵</strong>
+                </button>
+                <button type="button" class="character-button survivor" data-character-role="survivor" data-character="fencer">
+                  <span>击剑手 · 牵制位</span>
+                  <strong>奔跑转向叠健步，Q 突刺无敌并可变向</strong>
+                </button>
+                <button type="button" class="character-button survivor" data-character-role="survivor" data-character="general">
+                  <span>将军 · 救人位</span>
+                  <strong>大伤害降为 1 点，Q 骑马，骑马中 Q 鞭策</strong>
                 </button>
                 <button type="button" class="character-button hunter" data-character-role="hunter" data-character="standard">
                   <span>标准追捕者</span>
@@ -91,7 +113,7 @@
               <div class="badge-panel" id="badgePanel" aria-label="徽章天赋">
                 <div class="badge-header">
                   <span>徽章天赋</span>
-                  <strong id="badgeLimitReadout">紫 0/1 · 蓝 0/4</strong>
+                  <strong id="badgeLimitReadout">紫 0/2 · 蓝 0/4</strong>
                 </div>
                 <div class="badge-grid">
                   <button type="button" class="badge-button survivor blue" data-badge-role="survivor" data-badge-rarity="blue" data-badge="cipher">
@@ -114,9 +136,33 @@
                     <span>紫 · 回光返照</span>
                     <strong>5 台机修完后回一格血，并加速 5 秒</strong>
                   </button>
+                  <button type="button" class="badge-button survivor purple" data-badge-role="survivor" data-badge-rarity="purple" data-badge="borrowedTime">
+                    <span>紫 · 搏命挣扎</span>
+                    <strong>首次救人后双方 20 秒延迟结算伤害</strong>
+                  </button>
+                  <button type="button" class="badge-button survivor purple" data-badge-role="survivor" data-badge-rarity="purple" data-badge="flywheel">
+                    <span>紫 · 飞轮效应</span>
+                    <strong>L 向前冲刺 3 米，期间无敌，冷却 50 秒</strong>
+                  </button>
+                  <button type="button" class="badge-button survivor purple" data-badge-role="survivor" data-badge-rarity="purple" data-badge="kneeJerk">
+                    <span>紫 · 膝跳反射</span>
+                    <strong>翻板窗后 2 秒加速，板窗冷却分开计算</strong>
+                  </button>
                   <button type="button" class="badge-button hunter purple" data-badge-role="hunter" data-badge-rarity="purple" data-badge="detention">
                     <span>紫 · 挽留</span>
                     <strong>5 台机修完后普攻命中直接倒地</strong>
+                  </button>
+                  <button type="button" class="badge-button hunter purple" data-badge-role="hunter" data-badge-rarity="purple" data-badge="rampage">
+                    <span>紫 · 张狂</span>
+                    <strong>每 30 秒获得 1 刀存在感，最多 2 次</strong>
+                  </button>
+                  <button type="button" class="badge-button hunter purple" data-badge-role="hunter" data-badge-rarity="purple" data-badge="trumpCard">
+                    <span>紫 · 底牌切换</span>
+                    <strong>M 重新选择辅助技能，每局一次</strong>
+                  </button>
+                  <button type="button" class="badge-button hunter blue" data-badge-role="hunter" data-badge-rarity="blue" data-badge="wanted">
+                    <span>蓝 · 通缉</span>
+                    <strong>击倒逃生者后获得随机逃生者方向箭头</strong>
                   </button>
                   <button type="button" class="badge-button hunter blue" data-badge-role="hunter" data-badge-rarity="blue" data-badge="hunt">
                     <span>蓝 · 猎步</span>
@@ -162,6 +208,10 @@
                     <span>5 · 移形</span>
                     <strong>瞄准放置远端门，并在脚底生成近端门</strong>
                   </button>
+                  <button type="button" class="assist-button" data-assist="excitement">
+                    <span>6 · 兴奋</span>
+                    <strong>免疫一次眩晕；眩晕中使用会立刻解除</strong>
+                  </button>
                 </div>
               </div>
             </div>
@@ -172,6 +222,7 @@
           <div>
             <p class="eyebrow">Demo_12_UIRefresh</p>
             <h1>新UI开发原型</h1>
+            <div class="hunter-presence-badge is-hidden" id="hunterPresenceBadge" aria-label="追捕阶数"></div>
           </div>
           <div class="cipher-banner" aria-label="密码机进度">
             <strong id="cipherStatusReadout">五台密码机尚未破译</strong>
@@ -207,6 +258,6 @@
       </section>
     </main>
 
-    <script src="./js/main.js?v=soul-siphon-phase-20260618"></script>
+    <script src="./js/main.js?v=hunter-unlock-tasks-20260627"></script>
   </body>
 </html>
